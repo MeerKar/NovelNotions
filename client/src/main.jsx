@@ -12,9 +12,12 @@ import ErrorPage from "./pages/ErrorPage";
 import Clubs from "./pages/Clubs";
 import CreateClub from "./pages/CreateClub";
 import JoinClub from "./pages/JoinClub";
-import MyBookshelf from "./pages/MyBookshelf";
-import Bookshelf from "./pages/Bookshelf";
+import MyReads from "./pages/MyReads";
+import MyClub from "./pages/MyClub";
+import Books from "./pages/Books";
+import ClubPage from "./pages/ClubPage";
 import Auth from "./utils/auth";
+
 const ProtectedRoute = ({ element }) => {
   return Auth.loggedIn() ? element : <Navigate to="/login" />;
 };
@@ -62,12 +65,20 @@ const router = createBrowserRouter([
         element: <ProtectedRoute element={<JoinClub />} />,
       },
       {
-        path: "my-bookshelf",
-        element: <ProtectedRoute element={<MyBookshelf />} />,
+        path: "my-reads",
+        element: <ProtectedRoute element={<MyReads />} />,
       },
       {
-        path: "bookshelf",
-        element: <ProtectedRoute element={<Bookshelf />} />,
+        path: "club/:id",
+        element: <ProtectedRoute element={<ClubPage />} />,
+      },
+      {
+        path: "my-club",
+        element: <ProtectedRoute element={<MyClub />} />,
+      },
+      {
+        path: "books",
+        element: <ProtectedRoute element={<Books />} />,
       },
     ],
   },

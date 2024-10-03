@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Box,
   Flex,
@@ -9,7 +10,7 @@ import {
 import { Link } from "react-router-dom";
 import ClubCard from "../components/ClubCard";
 
-const clubData = [
+const staticClubData = [
   {
     name: "Epic Storytellers",
     image:
@@ -55,6 +56,13 @@ const clubData = [
 ];
 
 const Clubs = () => {
+  const [clubs, setClubs] = useState([]);
+
+  useEffect(() => {
+    const savedClubs = JSON.parse(localStorage.getItem("clubs")) || [];
+    setClubs([...staticClubData, ...savedClubs]); // Consistent key names allow smooth merging
+  }, []);
+
   return (
     <Container maxW="container.lg">
       <Box as="nav" w="100%" p={4} mb={6} bg="#f8ede3" color="#333">
@@ -72,13 +80,23 @@ const Clubs = () => {
             >
               Create Club
             </Button>
+
             <Button
               as={Link}
-              to="/my-bookshelf"
+              to="/my-club"
+              mr={4}
               colorScheme="#333"
               variant="outline"
             >
-              My Bookshelf
+              My Club
+            </Button>
+            <Button
+              as={Link}
+              to="/my-club"
+              colorScheme="#333"
+              variant="outline"
+            >
+              My Reads
             </Button>
           </Flex>
         </Flex>
@@ -87,12 +105,12 @@ const Clubs = () => {
       <Flex direction="column" align="center" justify="center" minH="100vh">
         <Box w="100%" p={6} boxShadow="md" borderRadius="md" textAlign="center">
           <SimpleGrid columns={[1, null, 2]} spacing={6}>
-            {clubData.map((club, index) => (
+            {clubs.map((club, index) => (
               <ClubCard
                 key={index}
-                name={club.name}
+                name={club.name} // Expect 'name' instead of 'clubName'
                 image={club.image}
-                description={club.description} // Pass description to ClubCard
+                description={club.description}
               />
             ))}
           </SimpleGrid>

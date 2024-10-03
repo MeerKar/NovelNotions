@@ -17,24 +17,81 @@ import {
   Image,
   Spinner,
 } from "@chakra-ui/react";
-import { ADD_REVIEW } from "../../utils/mutations"; // Ensure this mutation is correct
-import { QUERY_SINGLE_BOOK, QUERY_BOOKS, QUERY_ME } from "../../utils/queries";
+import { ADD_REVIEW, ADD_BOOK } from "../../utils/mutations";
+import { QUERY_SINGLE_BOOK, QUERY_ME, QUERY_BOOKS } from "../../utils/queries";
 import Auth from "../../utils/auth";
 
 const BookReviewForm = () => {
   const { id } = useParams();
   const { loading, data, error } = useQuery(QUERY_SINGLE_BOOK, {
-    variables: { id },
+    variables: { bookId: id },
   });
 
-  const [review, setReview] = useState("");
+  const [reviewText, setReviewText] = useState("");
   const [characterCount, setCharacterCount] = useState(0);
-  const [addBookReview, { error: submitError, data: submitData }] = useMutation(
+  const [submitLoading, setSubmitLoading] = useState(false);
+
+  const [addBook] = useMutation(ADD_BOOK, {
+    refetchQueries: [{ query: QUERY_BOOKS }, { query: QUERY_ME }],
+  });
+
+  const [addReview, { error: reviewError, data: submitData }] = useMutation(
     ADD_REVIEW,
     {
-      refetchQueries: [QUERY_BOOKS, "getBooks", QUERY_ME, "me"],
+      refetchQueries: [{ query: QUERY_BOOKS }, { query: QUERY_ME }],
     }
   );
+
+  const handleChange = (event) => {
+    const { value } = event.target;
+    if (value.length <= 280) {
+      setReviewText(value);
+      setCharacterCount(value.length);
+    }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSubmitLoading(true);
+
+    try {
+      // Ensure book data is available
+      if (!data?.book) {
+        throw new Error("Book data not found");
+      }
+
+      // Check if the book already exists in the user's collection
+      const existingBook = data?.book;
+      if (!existingBook) {
+        // Add book to the collection if not already present
+        await addBook({
+          variables: {
+            title: data.book.title,
+            author: data.book.author,
+            image: data.book.image,
+            description: data.book.description,
+          },
+        });
+      }
+
+      // Add review for the book
+      await addReview({
+        variables: {
+          bookId: id,
+          reviewText,
+          userId: Auth.getProfile().data._id,
+        },
+      });
+
+      // Reset form after submission
+      setReviewText("");
+      setCharacterCount(0);
+    } catch (err) {
+      console.error("Error submitting form:", err);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -58,31 +115,6 @@ const BookReviewForm = () => {
 
   const book = data?.book || {};
 
-  const handleChange = (event) => {
-    const { value } = event.target;
-    if (value.length <= 280) {
-      setReview(value);
-      setCharacterCount(value.length);
-    }
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    try {
-      await addBookReview({
-        variables: {
-          bookId: id,
-          reviewText: review,
-          username: Auth.getProfile().data.username,
-        },
-      });
-      setReview("");
-      setCharacterCount(0);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   return (
     <Container maxW="container.md">
       <Flex direction="column" align="center" justify="center" minH="100vh">
@@ -93,8 +125,7 @@ const BookReviewForm = () => {
           <Image src={book.image} alt={book.title} mb={4} />
           {submitData ? (
             <Text>
-              Success! You may now head{" "}
-              <Link to="/">back to the homepage.</Link>
+              Success! You may now head <Link to="/my-reads">to My Reads.</Link>
             </Text>
           ) : (
             <form onSubmit={handleSubmit}>
@@ -118,19 +149,19 @@ const BookReviewForm = () => {
                   readOnly
                 />
               </FormControl>
-              <FormControl id="bookReviewText" isRequired mb={6}>
+              <FormControl id="reviewText" isRequired mb={6}>
                 <FormLabel>Review</FormLabel>
                 <Textarea
                   placeholder="Here's a new review..."
-                  name="bookReviewText"
-                  value={review}
+                  name="reviewText"
+                  value={reviewText}
                   onChange={handleChange}
                   mb={4}
                 />
                 <Text
                   mb={2}
                   color={
-                    characterCount === 280 || submitError
+                    characterCount === 280 || reviewError
                       ? "red.500"
                       : "gray.600"
                   }
@@ -138,15 +169,20 @@ const BookReviewForm = () => {
                   Character Count: {characterCount}/280
                 </Text>
               </FormControl>
-              <Button colorScheme="blue" width="100%" type="submit">
+              <Button
+                colorScheme="blue"
+                width="100%"
+                type="submit"
+                isLoading={submitLoading}
+              >
                 Add a review
               </Button>
             </form>
           )}
-          {submitError && (
+          {reviewError && (
             <Alert status="error" mt={4}>
               <AlertIcon />
-              {submitError.message}
+              {reviewError.message}
             </Alert>
           )}
         </Box>
