@@ -53,11 +53,11 @@ const Header = () => {
               <MenuItem as={RouterLink} to="/clubs">
                 Join a Book Club
               </MenuItem>
-              <MenuItem as={RouterLink} to="/bookshelf">
-                Bookshelf
+              <MenuItem as={RouterLink} to="/books">
+                Books
               </MenuItem>
-              <MenuItem as={RouterLink} to="/my-bookshelf">
-                My Bookshelf
+              <MenuItem as={RouterLink} to="/my-reads">
+                My Reads
               </MenuItem>
               <MenuItem onClick={logout}>Logout</MenuItem>
             </MenuList>
@@ -75,22 +75,22 @@ const Header = () => {
             </Link>
             <Link
               as={RouterLink}
-              to="/bookshelf"
+              to="/bestsellers"
               mr={4}
               color="#333333"
               fontWeight="bold"
             >
-              Bookshelf
+              Books
             </Link>
 
             <Link
               as={RouterLink}
-              to="/my-bookshelf"
+              to="/my-reads"
               mr={4}
               color="#333333"
               fontWeight="bold"
             >
-              My Bookshelf
+              My Reads
             </Link>
             <Link
               as={RouterLink}

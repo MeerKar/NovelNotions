@@ -1,78 +1,107 @@
-// import React from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   Box,
   Heading,
-  Flex,
-  FormControl,
-  FormLabel,
-  Input,
   Button,
-  useToast,
+  Text,
+  Image,
+  Spinner,
+  Flex,
+  Container,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import { useQuery, useMutation } from "@apollo/client";
+import { QUERY_SINGLE_CLUB, QUERY_ME } from "../utils/queries";
+import { ADD_USER_TO_CLUB } from "../utils/mutations";
+import Auth from "../utils/auth";
 
-const JoinClub = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [club, setClub] = useState("");
-  const toast = useToast();
+const ClubPage = () => {
+  const { clubId } = useParams();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Add logic to handle form submission, e.g., send data to an API
-    console.log("Joining club:", { name, email, club });
+  // GraphQL Query to get single club data
+  const { loading, data, error } = useQuery(QUERY_SINGLE_CLUB, {
+    variables: { clubId },
+  });
 
-    // Show a success message
-    toast({
-      title: "Successfully joined the club.",
-      description: `You have joined the ${club} club.`,
-      status: "success",
-      duration: 5000,
-      isClosable: true,
-    });
+  // Mutation to add user to a club
+  const [addUserToClub] = useMutation(ADD_USER_TO_CLUB, {
+    refetchQueries: [{ query: QUERY_ME }],
+  });
 
-    // Clear the form
-    setName("");
-    setEmail("");
-    setClub("");
+  // State to track if the user is already joined
+  const [isJoined, setIsJoined] = useState(false);
+  const club = data?.club || {};
+
+  // Effect to check if the user is already in the club
+  useEffect(() => {
+    if (Auth.loggedIn()) {
+      const userData = Auth.getProfile().data;
+      if (club.users?.some((user) => user._id === userData._id)) {
+        setIsJoined(true);
+      }
+    }
+  }, [club]);
+
+  // Function to handle joining a club
+  const handleJoinClub = async () => {
+    if (Auth.loggedIn()) {
+      try {
+        await addUserToClub({
+          variables: {
+            clubId, // Only clubId is needed because userId will be inferred from context
+          },
+        });
+        setIsJoined(true); // Update state after successful join
+      } catch (err) {
+        console.error("Error joining the club:", err);
+      }
+    }
   };
 
+  if (loading) {
+    return (
+      <Flex justify="center" align="center" minH="100vh">
+        <Spinner size="xl" />
+      </Flex>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxW="container.md">
+        <Flex direction="column" align="center" justify="center" minH="100vh">
+          <Text fontSize="xl" color="red.500">
+            An error occurred: {error.message}
+          </Text>
+        </Flex>
+      </Container>
+    );
+  }
+
   return (
-    <Flex direction="column" align="center" justify="center" minH="100vh">
-      <Box p={6} boxShadow="md" borderRadius="md" w="100%" maxW="md">
-        <Heading mb={6}>Join Club</Heading>
-        <form onSubmit={handleSubmit}>
-          <FormControl id="name" mb={4} isRequired>
-            <FormLabel>Name</FormLabel>
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </FormControl>
-          <FormControl id="email" mb={4} isRequired>
-            <FormLabel>Email</FormLabel>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </FormControl>
-          <FormControl id="club" mb={4} isRequired>
-            <FormLabel>Club Name</FormLabel>
-            <Input
-              type="text"
-              value={club}
-              onChange={(e) => setClub(e.target.value)}
-            />
-          </FormControl>
-          <Button type="submit" colorScheme="orange" w="full">
+    <Container maxW="container.md">
+      <Box p={8} boxShadow="md" borderRadius="md">
+        {club.image && (
+          <Image src={club.image} alt={club.name} mb={4} borderRadius="md" />
+        )}
+        <Heading as="h2" size="xl" mb={4}>
+          {club.name}
+        </Heading>
+        <Text fontSize="md" mb={6}>
+          {club.description}
+        </Text>
+        {isJoined ? (
+          <Button colorScheme="green" disabled>
+            You are a member of this club
+          </Button>
+        ) : (
+          <Button colorScheme="orange" onClick={handleJoinClub}>
             Join Club
           </Button>
-        </form>
+        )}
       </Box>
-    </Flex>
+    </Container>
   );
 };
 
-export default JoinClub;
+export default ClubPage;

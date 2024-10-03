@@ -1,4 +1,4 @@
-const { Schema, model } = require('mongoose');
+const { Schema, model } = require("mongoose");
 
 const ratingSchema = new Schema({
   value: {
@@ -7,21 +7,21 @@ const ratingSchema = new Schema({
   },
   userId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: "User",
     required: true,
   },
   clubId: {
     type: Schema.Types.ObjectId,
-    ref: 'Club',
+    ref: "Club",
     required: true,
   },
   bookId: {
     type: Schema.Types.ObjectId,
-    ref: 'Book',
+    ref: "Book",
     required: true,
-  }
+  },
 });
 
-const Rating = model('Rating', ratingSchema);
+const Rating = model("Rating", ratingSchema);
 
 module.exports = Rating;

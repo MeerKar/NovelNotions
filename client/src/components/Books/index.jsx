@@ -10,22 +10,22 @@ import {
   Button,
 } from "@chakra-ui/react";
 import { useQuery } from "@apollo/client";
-import { QUERY_BOOKSHELF } from "../utils/queries"; // Adjust the query to fetch the bookshelf
+import { QUERY_BOOKS } from "../utils/queries"; // Adjust the query to fetch the bookshelf
 
-const Bookshelf = () => {
-  const { loading, data, error } = useQuery(QUERY_BOOKSHELF);
+const Books = () => {
+  const { loading, data, error } = useQuery(QUERY_BOOKS);
 
   if (loading) return <Spinner />;
-  if (error) return <Text>Error loading bookshelf.</Text>;
+  if (error) return <Text>Error loading books.</Text>;
 
-  const books = data?.bookshelf || [];
+  const books = data?.books || [];
 
   return (
     <Container maxW="container.lg">
       <SimpleGrid columns={{ base: 1, md: 3 }} spacing={10}>
         {books.map((book) => (
           <Box
-            key={book.id}
+            key={book._id} // Use _id as key if it's coming from MongoDB
             borderWidth="1px"
             borderRadius="lg"
             overflow="hidden"
@@ -38,7 +38,7 @@ const Bookshelf = () => {
               <Text>{book.author}</Text>
               <Button
                 as={RouterLink}
-                to={`/books/${book.id}`}
+                to={`/books/${book._id}`} // Adjusted to use _id
                 colorScheme="orange"
                 mt={2}
               >
@@ -52,4 +52,4 @@ const Bookshelf = () => {
   );
 };
 
-export default Bookshelf;
+export default Books;

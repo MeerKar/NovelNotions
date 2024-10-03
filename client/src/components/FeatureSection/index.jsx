@@ -33,7 +33,7 @@ const features = [
       "Explore our curated selection of books and find your next great read. Whether you love fiction, non-fiction, or anything in between, we've got something for everyone.",
     image:
       "https://s26162.pcdn.co/wp-content/uploads/2017/08/reading-together.jpg",
-    link: "/bookshelf",
+    link: "/books",
   },
 ];
 
