@@ -1,97 +1,135 @@
-import { useEffect } from "react";
+// src/pages/MyReads.jsx
+
+import { useEffect, useState } from "react";
 import {
-  Box,
-  Heading,
-  Text,
+  
   Flex,
-  Button,
+  Heading,
+  Container,
   SimpleGrid,
-  Image,
+  useColorModeValue,
+  Text,
+  Button,
   Spinner,
 } from "@chakra-ui/react";
-import { useQuery } from "@apollo/client";
-import { QUERY_ME } from "../utils/queries";
-import { Link as RouterLink } from "react-router-dom";
-import Auth from "../utils/auth";
+import { Link } from "react-router-dom";
+import BookCard from "../components/BookCard";
+import AuthService from "../utils/Auth";
+// import { fetchBestSellers } from "../components/API"; // Reuse the same function as in SingleBook to ensure consistency
 
 const MyReads = () => {
-  const { loading, data, refetch } = useQuery(QUERY_ME, {
-    skip: !Auth.loggedIn(), // Skip query if the user is not authenticated
-  });
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Refetch the data whenever the component mounts
+  // Get the current user
+  const currentUser = AuthService.loggedIn() ? AuthService.getProfile() : null;
+
   useEffect(() => {
-    if (Auth.loggedIn()) {
-      refetch();
-    }
-  }, [refetch]);
+    const fetchBooks = async () => {
+      if (!currentUser) return;
 
-  const books = data?.me?.books || [];
+      try {
+        setLoading(true);
+
+        // Fetch saved books from local storage
+        const savedBooksKey = `savedBooks_${currentUser.id}`;
+        const savedBooks = JSON.parse(localStorage.getItem(savedBooksKey)) || [];
+
+        // Normalize savedBooks to have a consistent structure with the SingleBook page
+        const normalizedSavedBooks = savedBooks.map((book) => ({
+          bookId: book.primary_isbn10 || book._id,
+          title: book.title || "Unknown Title",
+          author: book.author || "Unknown Author",
+          book_image: book.book_image || "default_image_url_here",
+          description: book.description || "No description available.",
+          publisher: book.publisher || "Unknown Publisher",
+          rank: book.rank || null,
+          rank_last_week: book.rank_last_week || null,
+          weeks_on_list: book.weeks_on_list || null,
+        }));
+
+        setBooks(normalizedSavedBooks);
+      } catch (error) {
+        console.error("Failed to fetch saved books:", error);
+        setError(error.message || "Failed to fetch saved books.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, [currentUser]);
+
+  // Define color schemes based on the current color mode
+  const headingColor = useColorModeValue("gray.800", "white");
+  const spinnerBgColor = useColorModeValue("#A9D6E5", "#F0EFEB");
+
+  if (!currentUser) {
+    return (
+      <Flex justify="center" align="center" w="100%" minH="50vh">
+        <Text fontSize="xl" color="gray.500">
+          Please log in to view your reads.
+        </Text>
+      </Flex>
+    );
+  }
 
   if (loading) {
     return (
-      <Flex justify="center" align="center" minH="50vh">
-        <Spinner size="xl" />
+      <Flex
+        direction="column"
+        align="center"
+        justify="center"
+        bg={spinnerBgColor}
+      >
+        <Spinner
+          size="xl"
+          thickness="4px"
+          speed="0.65s"
+          emptyColor="gray.200"
+          color="teal.500"
+        />
+        <Text mt={4} fontSize="lg" color="teal.500">
+          Loading your saved books...
+        </Text>
+      </Flex>
+    );
+  }
+
+  if (error) {
+    return (
+      <Flex justify="center" align="center" w="100%" minH="50vh">
+        <Text fontSize="xl" color="red.500">
+          {error}
+        </Text>
       </Flex>
     );
   }
 
   return (
-    <Box bg="#f8ede3" p={8}>
-      <Heading as="h1" mb={8} textAlign="center">
+    <Container maxW="container.xl" py={8}>
+      <Heading as="h2" size="lg" color={headingColor} mb={8}>
         My Reads
       </Heading>
 
       {books.length > 0 ? (
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={10}>
+        <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={6}>
           {books.map((book) => (
-            <Box
-              key={book._id}
-              borderWidth="1px"
-              borderRadius="lg"
-              overflow="hidden"
-              bg="white"
-              boxShadow="md"
-              _hover={{ boxShadow: "lg" }}
-            >
-              <Image
-                src={book.book_image || "https://via.placeholder.com/150"}
-                alt={book.title || "No Image Available"}
-              />
-              <Box p={6}>
-                <Heading as="h3" size="lg" mb={2}>
-                  {book.title}
-                </Heading>
-                <Text fontWeight="bold" color="gray.600" mb={2}>
-                  {book.author}
-                </Text>
-                <Text noOfLines={3} mb={4}>
-                  {book.description}
-                </Text>
-                {book.primary_isbn10 && (
-                  <Button
-                    as={RouterLink}
-                    to={`/books/${book.primary_isbn10}`}
-                    colorScheme="orange"
-                  >
-                    View Details
-                  </Button>
-                )}
-              </Box>
-            </Box>
+            <BookCard key={book.bookId} {...book} />
           ))}
         </SimpleGrid>
       ) : (
-        <Flex justify="center" align="center" direction="column" minH="50vh">
-          <Text fontSize="xl" color="blackAlpha.500" mb={4}>
-            Your reads are empty.
+        <Flex direction="column" justify="center" align="center" w="100%">
+          <Text fontSize="xl" color="gray.500" mb={4}>
+            You have not saved any books yet.
           </Text>
-          <Button as={RouterLink} to="/books" colorScheme="orange">
-            Add Books
+          <Button as={Link} to="/books" colorScheme="teal">
+            Browse Books
           </Button>
         </Flex>
       )}
-    </Box>
+    </Container>
   );
 };
 

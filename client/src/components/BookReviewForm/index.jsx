@@ -19,7 +19,7 @@ import {
 } from "@chakra-ui/react";
 import { ADD_REVIEW, ADD_BOOK } from "../../utils/mutations";
 import { QUERY_SINGLE_BOOK, QUERY_ME, QUERY_BOOKS } from "../../utils/queries";
-import Auth from "../../utils/auth";
+import Auth from "../../utils/Auth";
 
 const BookReviewForm = () => {
   const { id } = useParams();

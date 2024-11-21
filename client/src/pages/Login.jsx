@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useMutation } from "@apollo/client";
 import {
   Box,
   Button,
@@ -8,98 +6,141 @@ import {
   FormControl,
   FormLabel,
   Heading,
-  Text,
+  VStack,
   Flex,
-  Container,
-  Alert,
-  AlertIcon,
+  useColorModeValue,
+  useToast,
+  Text,
 } from "@chakra-ui/react";
-import { LOGIN_USER } from "../utils/mutations";
-import Auth from "../utils/auth";
+import { useNavigate, Link } from "react-router-dom";
+import { useMutation } from "@apollo/client";
+import { LOGIN_USER } from "../utils/mutations"; // Adjust path as needed
+import AuthService from "../utils/Auth";
 
 const Login = () => {
-  const [formState, setFormState] = useState({ email: "", password: "" });
-  const [login, { error, data }] = useMutation(LOGIN_USER);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const toast = useToast();
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFormState({ ...formState, [name]: value });
-  };
+  // Set up the login mutation with Apollo
+  const [login, { loading, error }] = useMutation(LOGIN_USER);
 
-  const handleFormSubmit = async (event) => {
-    event.preventDefault();
-    console.log("Form submitted with state:", formState);
+  const handleLogin = async (e) => {
+    e.preventDefault();
 
     try {
-      const { data } = await login({ variables: { ...formState } });
-      console.log("Login mutation data:", data);
-      Auth.login(data.login.token);
-      console.log("Token stored and user logged in, navigating to /");
-      navigate("/");
-    } catch (e) {
-      console.error("Login error:", e);
+      const { data } = await login({
+        variables: { email, password },
+      });
+
+      // Assuming AuthService.login() stores the token in local storage
+      AuthService.login(data.login.token);
+
+      toast({
+        title: "Login Successful",
+        description: `Welcome back, ${data.login.user.username}!`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      navigate("/"); // Redirect to home or desired page
+    } catch (err) {
+      toast({
+        title: "Login Failed",
+        description: "Invalid email or password.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
+  const backgroundImageUrl =
+    "https://media.npr.org/assets/img/2020/01/10/book-club-_wide-91bca7f71828ead5630585078e34a30d7e52d8e9.jpg";
+
   return (
-    <Container maxW="container.md">
-      <Flex direction="column" align="center" justify="center" minH="100vh">
-        <Box w="100%" p={6} boxShadow="md" borderRadius="md">
-          <Heading as="h4" size="lg" mb={6} textAlign="center">
-            Login
-          </Heading>
-          {data ? (
-            <Text textAlign="center">
-              Success! You may now head{" "}
-              <Link to="/">back to the homepage.</Link>
+    <Flex
+      minH="100vh"
+      align="center"
+      justify="center"
+      backgroundImage={`url(${backgroundImageUrl})`}
+      backgroundSize="cover"
+      backgroundPosition="center"
+      backgroundRepeat="no-repeat"
+      position="relative"
+    >
+      <Box
+        position="absolute"
+        top="0"
+        left="0"
+        width="100%"
+        height="100%"
+        bg="rgba(0, 0, 0, 0.6)"
+        zIndex="0"
+      />
+
+      <Box
+        position="relative"
+        p={8}
+        maxW="md"
+        borderWidth={1}
+        borderRadius={8}
+        boxShadow="lg"
+        bg={useColorModeValue("whiteAlpha.900", "gray.700")}
+        zIndex="1"
+      >
+        <Heading
+          mb={6}
+          textAlign="center"
+          color={useColorModeValue("teal.600", "teal.300")}
+        >
+          Login
+        </Heading>
+        <form onSubmit={handleLogin}>
+          <VStack spacing={4}>
+            <FormControl id="email" isRequired>
+              <FormLabel>Email</FormLabel>
+              <Input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                bg={useColorModeValue("white", "gray.600")}
+              />
+            </FormControl>
+            <FormControl id="password" isRequired>
+              <FormLabel>Password</FormLabel>
+              <Input
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                bg={useColorModeValue("white", "gray.600")}
+              />
+            </FormControl>
+            <Button
+              type="submit"
+              colorScheme="teal"
+              width="full"
+              isLoading={loading}
+            >
+              Login
+            </Button>
+            {error && (
+              <Text color="red.500">Failed to login. Please try again.</Text>
+            )}
+            <Text>
+              Don&apos;t have an account?{" "}
+              <Link to="/signup" style={{ color: "#3182CE" }}>
+                Signup
+              </Link>
             </Text>
-          ) : (
-            <form onSubmit={handleFormSubmit}>
-              <FormControl id="email" isRequired mb={4}>
-                <FormLabel>Email address</FormLabel>
-                <Input
-                  placeholder="Your email"
-                  name="email"
-                  type="email"
-                  value={formState.email}
-                  onChange={handleChange}
-                />
-              </FormControl>
-              <FormControl id="password" isRequired mb={6}>
-                <FormLabel>Password</FormLabel>
-                <Input
-                  placeholder="******"
-                  name="password"
-                  type="password"
-                  value={formState.password}
-                  onChange={handleChange}
-                />
-              </FormControl>
-              <Button colorScheme="blue" width="100%" type="submit" mb={4}>
-                Submit
-              </Button>
-              <Flex justify="center">
-                <Text mr={2}>Dont have an account?</Text>
-                <Button
-                  as={Link}
-                  to="/signup"
-                  colorScheme="teal"
-                  variant="link"
-                >
-                  Sign Up Here
-                </Button>
-              </Flex>
-            </form>
-          )}
-          {error && (
-            <Alert status="error" mt={4}>
-              <AlertIcon /> {error.message}
-            </Alert>
-          )}
-        </Box>
-      </Flex>
-    </Container>
+          </VStack>
+        </form>
+      </Box>
+    </Flex>
   );
 };
 

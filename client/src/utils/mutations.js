@@ -37,30 +37,23 @@ export const EDIT_USER = gql`
     }
   }
 `;
-
+// Add Book Mutation
 export const ADD_BOOK = gql`
-  mutation addBook($title: String!) {
-    addBook(title: $title) {
+  mutation AddBook($bookId: ID!) {
+    addBook(bookId: $bookId) {
       _id
-      title
-      author
+      username
+      email
+      bookCount
+      savedBooks {
+        _id
+        title
+        authors
+        description
+        image
+        link
+      }
       createdAt
-      reviews {
-        _id
-        text
-      }
-      clubs {
-        _id
-        name
-      }
-      user {
-        _id
-        username
-      }
-      ratings {
-        _id
-        value
-      }
     }
   }
 `;
@@ -95,10 +88,14 @@ export const EDIT_BOOK = gql`
 //     }
 //   }
 // `;
+// Add Review Mutation
 export const ADD_REVIEW = gql`
-  mutation addReview($bookId: ID!, $reviewText: String!, $userId: ID!) {
+  mutation AddReview($bookId: ID!, $reviewText: String!, $userId: ID!) {
     addReview(bookId: $bookId, reviewText: $reviewText, userId: $userId) {
       _id
+      reviewText
+      createdAt
+      username
     }
   }
 `;
@@ -137,6 +134,87 @@ export const EDIT_CLUB = gql`
     editClub(id: $id, name: $name) {
       _id
       name
+    }
+  }
+`;
+
+export const CREATE_CLUB = gql`
+  mutation createClub(
+    $name: String!
+    $description: String!
+    $category: String!
+    $image: String
+  ) {
+    createClub(
+      name: $name
+      description: $description
+      category: $category
+      image: $image
+    ) {
+      _id
+      name
+      description
+      image
+      category
+      books {
+        _id
+        title
+        author
+      }
+      users {
+        _id
+        username
+      }
+    }
+  }
+`;
+
+export const UPDATE_CLUB = gql`
+  mutation updateClub(
+    $clubId: ID!
+    $name: String
+    $description: String
+    $category: String
+    $image: String
+  ) {
+    updateClub(
+      clubId: $clubId
+      name: $name
+      description: $description
+      category: $category
+      image: $image
+    ) {
+      _id
+      name
+      description
+      image
+      category
+    }
+  }
+`;
+
+export const JOIN_CLUB = gql`
+  mutation joinClub($clubId: ID!) {
+    joinClub(clubId: $clubId) {
+      _id
+      name
+      users {
+        _id
+        username
+      }
+    }
+  }
+`;
+
+export const LEAVE_CLUB = gql`
+  mutation leaveClub($clubId: ID!) {
+    leaveClub(clubId: $clubId) {
+      _id
+      name
+      users {
+        _id
+        username
+      }
     }
   }
 `;
@@ -205,10 +283,21 @@ export const EDIT_RATING = gql`
 `;
 
 export const REMOVE_BOOK = gql`
-  mutation removeBook($bookId: ID!) {
+  mutation RemoveBook($bookId: ID!) {
     removeBook(bookId: $bookId) {
       _id
-      title
+      username
+      email
+      bookCount
+      savedBooks {
+        _id
+        title
+        authors
+        description
+        image
+        link
+      }
+      createdAt
     }
   }
 `;

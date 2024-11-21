@@ -1,6 +1,5 @@
-// src/pages/JoinClubPage.jsx
+// src/pages/ClubsListPage.jsx
 
-import { useState } from "react";
 import { useQuery } from "@apollo/client";
 import { QUERY_CLUBS } from "../utils/queries";
 import {
@@ -12,26 +11,13 @@ import {
   Alert,
   AlertIcon,
   Flex,
-  Input,
-  InputGroup,
-  InputLeftElement,
   useColorModeValue,
 } from "@chakra-ui/react";
-import { SearchIcon } from "@chakra-ui/icons";
-import ClubCard from "../components/ClubCard";
+import ClubCard from "../components/Clubs/ClubCard";
 
-const JoinClubPage = () => {
+const ClubsListPage = () => {
   const { loading, error, data } = useQuery(QUERY_CLUBS);
-  const [searchTerm, setSearchTerm] = useState("");
   const headingColor = useColorModeValue("teal.600", "teal.300");
-
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const filteredClubs = data?.clubs?.filter((club) =>
-    club.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   if (loading)
     return (
@@ -50,6 +36,8 @@ const JoinClubPage = () => {
       </Container>
     );
 
+  const clubs = data.clubs;
+
   return (
     <Container maxW="container.xl" py={8}>
       <Heading
@@ -59,34 +47,19 @@ const JoinClubPage = () => {
         color={headingColor}
         // color={useColorModeValue("teal.600", "teal.300")}
       >
-        Join a Club
+        All Clubs
       </Heading>
-
-      <Flex justify="center" mb={6}>
-        <InputGroup maxW="400px">
-          <InputLeftElement pointerEvents="none">
-            <SearchIcon color="gray.300" />
-          </InputLeftElement>
-          <Input
-            type="text"
-            placeholder="Search for a club"
-            value={searchTerm}
-            onChange={handleSearch}
-          />
-        </InputGroup>
-      </Flex>
-
-      {filteredClubs && filteredClubs.length > 0 ? (
+      {clubs.length > 0 ? (
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={10}>
-          {filteredClubs.map((club) => (
+          {clubs.map((club) => (
             <ClubCard key={club._id} club={club} />
           ))}
         </SimpleGrid>
       ) : (
-        <Text textAlign="center">No clubs match your search criteria.</Text>
+        <Text textAlign="center">No clubs available at the moment.</Text>
       )}
     </Container>
   );
 };
 
-export default JoinClubPage;
+export default ClubsListPage;

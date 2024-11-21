@@ -1,5 +1,8 @@
+// src/utils/queries.js
+
 import { gql } from "@apollo/client";
 
+// User Queries
 //user
 export const QUERY_USER = gql`
   query user($username: String!) {
@@ -21,9 +24,26 @@ export const QUERY_USER = gql`
   }
 `;
 
-//books
+export const QUERY_ME = gql`
+  query GetMe {
+    me {
+      _id
+      username
+      email
+      books {
+        _id
+        title
+        author
+        image
+        createdAt
+      }
+    }
+  }
+`;
+
+// Book Queries
 export const QUERY_BOOKS = gql`
-  query getBOOKS {
+  query GetBooks {
     books {
       _id
       title
@@ -38,26 +58,11 @@ export const QUERY_BOOKS = gql`
     }
   }
 `;
-export const QUERY_BOOKSHELF = gql`
-  query getBookshelf($userId: ID!) {
-    bookshelf(userId: $userId) {
-      _id
-      title
-      author
-      description
-      book_image
-      primary_isbn10
-      category
-    }
-  }
-`;
-
-//single book
 
 export const QUERY_SINGLE_BOOK = gql`
-  query getsingleBook($bookId: ID!) {
+  query GetSingleBook($bookId: ID!) {
     book(bookId: $bookId) {
-      id
+      _id
       title
       author
       image
@@ -75,56 +80,8 @@ export const QUERY_SINGLE_BOOK = gql`
   }
 `;
 
-//me
-export const QUERY_ME = gql`
-  query me {
-    me {
-      _id
-      username
-      email
-      books {
-        _id
-        title
-        author
-        image
-        createdAt
-      }
-    }
-  }
-`;
-
-//clubs
-export const QUERY_CLUBS = gql`
-  query getCLUBS {
-    clubs {
-      _id
-      name
-      createdAt
-    }
-  }
-`;
-
-//single club
-export const QUERY_SINGLE_CLUB = gql`
-  query getSingleClub($clubId: ID!) {
-    club(clubId: $clubId) {
-      _id
-      name
-      books {
-        _id
-        title
-        author
-      }
-      users {
-        _id
-        username
-      }
-      createdAt
-    }
-  }
-`;
 export const QUERY_BOOK_BY_TITLE = gql`
-  query bookByTitle($title: String!) {
+  query GetBookByTitle($title: String!) {
     bookByTitle(title: $title) {
       _id
       title
@@ -143,42 +100,53 @@ export const QUERY_BOOK_BY_TITLE = gql`
     }
   }
 `;
-export const ADD_TO_BOOKSHELF = gql`
-  mutation addToBookshelf($bookId: ID!, $userId: ID!) {
-    addToBookshelf(bookId: $bookId, userId: $userId) {
+
+export const QUERY_CLUBS = gql`
+  query getClubs {
+    clubs {
       _id
-      username
-      email
+      name
+      description
+      image
+      category
       books {
         _id
         title
         author
-        image
         description
-        review
-        createdAt
+        primary_isbn10
+        book_image
+      }
+      users {
+        _id
+        username
+        avatarUrl
       }
     }
   }
 `;
-// export const ADD_USER = gql`
-//   mutation addUser($username: String!, $email: String!, $password: String!) {
-//     addUser(username: $username, email: $email, password: $password) {
-//       token
-//       user {
-//         _id
-//         username
-//       }
-//     }
-//   }
-// `;
-export const ADD_REVIEW = gql`
-  mutation AddReview($bookId: ID!, $reviewText: String!, $userId: ID!) {
-    addReview(bookId: $bookId, reviewText: $reviewText, userId: $userId) {
+
+export const QUERY_SINGLE_CLUB = gql`
+  query singleClub($clubId: ID!) {
+    club(_id: $clubId) {
       _id
-      reviewText
-      createdAt
-      username
+      name
+      description
+      image
+      category
+      books {
+        _id
+        title
+        author
+        description
+        primary_isbn10
+        book_image
+      }
+      users {
+        _id
+        username
+        avatarUrl
+      }
     }
   }
 `;
