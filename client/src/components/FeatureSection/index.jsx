@@ -1,3 +1,5 @@
+// src/components/FeatureSection/index.jsx
+
 import {
   Box,
   Heading,
@@ -5,11 +7,19 @@ import {
   Image,
   Text,
   Button,
-  Flex,
+  Card,
+  CardBody,
+  CardFooter,
+  useColorModeValue,
+  Spinner,
+  Center,
+  Tooltip,
+  VStack,
 } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { fetchBestSellers } from "../API"; // Ensure this path is correct
+import { FaArrowRight, FaStar, FaRegStar } from "react-icons/fa";
 
 const features = [
   {
@@ -19,6 +29,7 @@ const features = [
     image:
       "https://www.rd.com/wp-content/uploads/2022/11/GettyImages-1389876065.jpg",
     link: "/clubs",
+    buttonText: "Organize Now",
   },
   {
     title: "Find a Club to Join",
@@ -26,6 +37,7 @@ const features = [
       "Looking to join a book club? Discover a variety of clubs that match your reading interests and connect with like-minded readers.",
     image: "https://www.pbc.guru/images/pbc-guru-managed-book-clubs-home.jpg",
     link: "/join-club",
+    buttonText: "Join a Club",
   },
   {
     title: "Discover New Books",
@@ -34,179 +46,298 @@ const features = [
     image:
       "https://s26162.pcdn.co/wp-content/uploads/2017/08/reading-together.jpg",
     link: "/books",
+    buttonText: "Explore Books",
   },
 ];
 
 const FeatureSection = () => {
-  const [bestSellerFiction, setBestSellerFiction] = useState(null);
-  const [bestSellerNonFiction, setBestSellerNonFiction] = useState(null);
+  const [bestSellers, setBestSellers] = useState({
+    fiction: null,
+    nonFiction: null,
+  });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
+
+  // Define color schemes based on the current color mode
+  const bgColor = useColorModeValue("gray.50", "gray.900");
+  const cardBg = useColorModeValue("white", "gray.800");
+  const headingColor = useColorModeValue("teal.600", "teal.300");
+  const textColor = useColorModeValue("gray.700", "gray.200");
+  const buttonBg = useColorModeValue("teal.400", "teal.600");
+  const buttonHoverColor = useColorModeValue("teal.500", "teal.500");
+  const starColor = useColorModeValue("yellow.400", "yellow.300");
 
   useEffect(() => {
     const getBestSellers = async () => {
       try {
-        const fictionBestSellers = await fetchBestSellers("hardcover-fiction");
-        const nonFictionBestSellers = await fetchBestSellers(
-          "hardcover-nonfiction"
-        );
-        setBestSellerFiction(fictionBestSellers[0]); // Get the first book from the fiction bestsellers list
-        setBestSellerNonFiction(nonFictionBestSellers[0]); // Get the first book from the non-fiction bestsellers list
-      } catch (error) {
-        setError(error.message);
+        const [fictionBestSellers, nonFictionBestSellers] = await Promise.all([
+          fetchBestSellers("hardcover-fiction"),
+          fetchBestSellers("hardcover-nonfiction"),
+        ]);
+
+        setBestSellers({
+          fiction: fictionBestSellers[0], // Get the first book from the fiction bestsellers list
+          nonFiction: nonFictionBestSellers[0], // Get the first book from the non-fiction bestsellers list
+        });
+      } catch (err) {
+        setError(err.message || "Failed to fetch best sellers.");
       } finally {
         setLoading(false);
       }
     };
+
     getBestSellers();
   }, []);
 
+  // Function to render star ratings (placeholder implementation)
+  const renderStars = (rating) => {
+    const stars = [];
+    const maxStars = 5;
+    const filledStars = Math.round(rating);
+    for (let i = 1; i <= maxStars; i++) {
+      if (i <= filledStars) {
+        stars.push(<FaStar key={i} color={starColor} />);
+      } else {
+        stars.push(<FaRegStar key={i} color={starColor} />);
+      }
+    }
+    return stars;
+  };
+
   return (
-    <Box bg="#f8ede3" p={8}>
+    <Box bg={bgColor} py={16} px={{ base: 4, md: 8 }}>
+      {/* Features Grid */}
+      <Heading
+        as="h2"
+        size="xl"
+        textAlign="center"
+        mb={12}
+        color={headingColor}
+        fontWeight="bold"
+      >
+        Our Features
+      </Heading>
       <SimpleGrid columns={{ base: 1, md: 3 }} spacing={10}>
         {features.map((feature, index) => (
-          <Box
+          <Card
             key={index}
-            borderWidth="1px"
+            bg={cardBg}
             borderRadius="lg"
             overflow="hidden"
-            bg="white"
+            boxShadow="md"
+            _hover={{
+              boxShadow: "xl",
+              transform: "translateY(-5px)",
+              transition: "all 0.3s ease-in-out",
+            }}
+            transition="all 0.3s ease-in-out"
           >
-            <Image src={feature.image} alt={feature.title} />
-            <Box p={6} textAlign="center">
-              <Heading as="h3" size="lg" mb={4}>
+            <Box position="relative" height="200px" overflow="hidden">
+              <Image
+                src={feature.image}
+                alt={feature.title}
+                objectFit="cover"
+                width="100%"
+                height="100%"
+                transition="transform 0.3s ease"
+                _hover={{ transform: "scale(1.05)" }}
+              />
+            </Box>
+            <CardBody>
+              <Heading as="h3" size="md" mb={4} color={headingColor}>
                 {feature.title}
               </Heading>
-              <Text mb={4}>{feature.description}</Text>
-              <Button
-                as={RouterLink}
-                to={feature.link}
-                colorScheme="orange"
-                variant="solid"
+              <Text color={textColor} mb={4}>
+                {feature.description}
+              </Text>
+            </CardBody>
+            <CardFooter>
+              <Tooltip
+                label={feature.buttonText}
+                aria-label={`${feature.buttonText} Tooltip`}
+                hasArrow
               >
-                {feature.title}
-              </Button>
-            </Box>
-          </Box>
+                <Button
+                  as={RouterLink}
+                  to={feature.link}
+                  rightIcon={<FaArrowRight />}
+                  colorScheme="teal"
+                  variant="solid"
+                  size="md"
+                  bg={buttonBg}
+                  _hover={{ bg: buttonHoverColor }}
+                  width="full"
+                >
+                  {feature.buttonText}
+                </Button>
+              </Tooltip>
+            </CardFooter>
+          </Card>
         ))}
       </SimpleGrid>
 
-      {loading ? (
-        <Flex direction="column" align="center" justify="center" minH="20vh">
-          <Text>Loading best sellers...</Text>
-        </Flex>
-      ) : error ? (
-        <Flex direction="column" align="center" justify="center" minH="20vh">
-          <Text color="red.500">Error: {error}</Text>
-        </Flex>
-      ) : (
-        <Box
-          w="100%"
-          p={6}
-          boxShadow="md"
-          borderRadius="md"
+      {/* Best Sellers Section */}
+      <Box mt={20}>
+        <Heading
+          as="h2"
+          size="xl"
           textAlign="center"
-          mt={8} // Add some top margin to separate it from the above content
+          mb={12}
+          color={headingColor}
+          fontWeight="bold"
         >
-          <Heading as="h2" size="lg" mb={4}>
-            Current Best Sellers
-          </Heading>
+          Current Best Sellers
+        </Heading>
+        {loading ? (
+          <Center>
+            <Spinner size="xl" color="teal.500" />
+          </Center>
+        ) : error ? (
+          <Center>
+            <Text color="red.500" fontSize="lg">
+              {error}
+            </Text>
+          </Center>
+        ) : (
           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={10}>
-            {bestSellerFiction && (
-              <Box
-                borderWidth="1px"
-                borderRadius="md"
+            {/* Fiction Best Seller */}
+            {bestSellers.fiction && (
+              <Card
+                bg={cardBg}
+                borderRadius="lg"
                 overflow="hidden"
-                p={4}
-                bg="white"
-                boxShadow="lg"
+                boxShadow="md"
+                _hover={{
+                  boxShadow: "xl",
+                  transform: "translateY(-5px)",
+                  transition: "all 0.3s ease-in-out",
+                }}
+                transition="all 0.3s ease-in-out"
               >
-                <Heading as="h3" size="md" mb={2}>
-                  Fiction
-                </Heading>
-                <Flex
-                  direction={["column", null, "row"]}
-                  align="center"
-                  justify="center"
-                >
+                <Box position="relative" height="300px" overflow="hidden">
                   <Image
-                    src={bestSellerFiction.book_image}
-                    alt={bestSellerFiction.title}
-                    borderRadius="md"
-                    mb={[4, null, 0]}
-                    mr={[0, null, 4]}
+                    src={bestSellers.fiction.book_image}
+                    alt={bestSellers.fiction.title}
+                    objectFit="cover"
+                    width="100%"
+                    height="100%"
+                    transition="transform 0.3s ease"
+                    _hover={{ transform: "scale(1.05)" }}
                   />
-                  <Box textAlign="left">
-                    <Heading as="h4" size="sm" mb={2}>
-                      {bestSellerFiction.title}
-                    </Heading>
-                    <Text fontStyle="italic" mb={2}>
-                      {bestSellerFiction.description}
+                </Box>
+                <CardBody>
+                  <Heading as="h3" size="lg" mb={2} color={headingColor}>
+                    Fiction
+                  </Heading>
+                  <Heading as="h4" size="md" mb={2}>
+                    {bestSellers.fiction.title}
+                  </Heading>
+                  <Text fontStyle="italic" mb={2} color={textColor}>
+                    {bestSellers.fiction.description}
+                  </Text>
+                  {/* Placeholder for rating */}
+                  <Box display="flex" alignItems="center" mb={2}>
+                    {renderStars(4.5)} {/* Example rating */}
+                    <Text ml={2} color={textColor}>
+                      4.5/5
                     </Text>
-                    <Text>
-                      <strong>Author:</strong> {bestSellerFiction.author}
-                    </Text>
+                  </Box>
+                  <Text mb={2} color={textColor}>
+                    <strong>Author:</strong> {bestSellers.fiction.author}
+                  </Text>
+                </CardBody>
+                <CardFooter>
+                  <Tooltip
+                    label="View Fiction Book"
+                    aria-label="View Fiction Book Tooltip"
+                    hasArrow
+                  >
                     <Button
                       as={RouterLink}
-                      to={`/books/${bestSellerFiction.primary_isbn10}`}
-                      colorScheme="orange"
-                      mt={4}
+                      to={`/books/${bestSellers.fiction.primary_isbn10}`}
+                      colorScheme="teal"
+                      variant="outline"
+                      size="md"
+                      leftIcon={<FaArrowRight />}
+                      width="full"
                     >
                       View Book
                     </Button>
-                  </Box>
-                </Flex>
-              </Box>
+                  </Tooltip>
+                </CardFooter>
+              </Card>
             )}
-            {bestSellerNonFiction && (
-              <Box
-                borderWidth="1px"
-                borderRadius="md"
+
+            {/* Non-Fiction Best Seller */}
+            {bestSellers.nonFiction && (
+              <Card
+                bg={cardBg}
+                borderRadius="lg"
                 overflow="hidden"
-                p={4}
-                bg="white"
-                boxShadow="lg"
+                boxShadow="md"
+                _hover={{
+                  boxShadow: "xl",
+                  transform: "translateY(-5px)",
+                  transition: "all 0.3s ease-in-out",
+                }}
+                transition="all 0.3s ease-in-out"
               >
-                <Heading as="h3" size="md" mb={2}>
-                  Non-Fiction
-                </Heading>
-                <Flex
-                  direction={["column", null, "row"]}
-                  align="center"
-                  justify="center"
-                >
+                <Box position="relative" height="300px" overflow="hidden">
                   <Image
-                    src={bestSellerNonFiction.book_image}
-                    alt={bestSellerNonFiction.title}
-                    borderRadius="md"
-                    mb={[4, null, 0]}
-                    mr={[0, null, 4]}
+                    src={bestSellers.nonFiction.book_image}
+                    alt={bestSellers.nonFiction.title}
+                    objectFit="cover"
+                    width="100%"
+                    height="100%"
+                    transition="transform 0.3s ease"
+                    _hover={{ transform: "scale(1.05)" }}
                   />
-                  <Box textAlign="left">
-                    <Heading as="h4" size="sm" mb={2}>
-                      {bestSellerNonFiction.title}
-                    </Heading>
-                    <Text fontStyle="italic" mb={2}>
-                      {bestSellerNonFiction.description}
+                </Box>
+                <CardBody>
+                  <Heading as="h3" size="lg" mb={2} color={headingColor}>
+                    Non-Fiction
+                  </Heading>
+                  <Heading as="h4" size="md" mb={2}>
+                    {bestSellers.nonFiction.title}
+                  </Heading>
+                  <Text fontStyle="italic" mb={2} color={textColor}>
+                    {bestSellers.nonFiction.description}
+                  </Text>
+                  {/* Placeholder for rating */}
+                  <Box display="flex" alignItems="center" mb={2}>
+                    {renderStars(4)} {/* Example rating */}
+                    <Text ml={2} color={textColor}>
+                      4/5
                     </Text>
-                    <Text>
-                      <strong>Author:</strong> {bestSellerNonFiction.author}
-                    </Text>
+                  </Box>
+                  <Text mb={2} color={textColor}>
+                    <strong>Author:</strong> {bestSellers.nonFiction.author}
+                  </Text>
+                </CardBody>
+                <CardFooter>
+                  <Tooltip
+                    label="View Non-Fiction Book"
+                    aria-label="View Non-Fiction Book Tooltip"
+                    hasArrow
+                  >
                     <Button
                       as={RouterLink}
-                      to={`/books/${bestSellerNonFiction.primary_isbn10}`}
-                      colorScheme="orange"
-                      mt={4}
+                      to={`/books/${bestSellers.nonFiction.primary_isbn10}`}
+                      colorScheme="teal"
+                      variant="outline"
+                      size="md"
+                      leftIcon={<FaArrowRight />}
+                      width="full"
                     >
                       View Book
                     </Button>
-                  </Box>
-                </Flex>
-              </Box>
+                  </Tooltip>
+                </CardFooter>
+              </Card>
             )}
           </SimpleGrid>
-        </Box>
-      )}
+        )}
+      </Box>
     </Box>
   );
 };

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useMutation } from "@apollo/client";
 import { Box, Button, Text, Textarea, VStack, Heading } from "@chakra-ui/react";
 import { ADD_REVIEW } from "../../utils/mutations";
-import Auth from "../../utils/auth";
+import Auth from "../../utils/Auth";
 
 const CommentForm = ({ bookId, onAddComment }) => {
   const [reviewText, setReviewText] = useState("");

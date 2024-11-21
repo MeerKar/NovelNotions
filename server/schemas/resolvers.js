@@ -1,151 +1,282 @@
+// server/resolvers.js
+
 const { User, Book, Club, Review, Rating } = require("../models");
 const { signToken } = require("../utils/auth");
-const { GraphQLScalarType } = require("graphql");
-const { Kind } = require("graphql/language");
-const { Types } = require("mongoose");
+const {
+  AuthenticationError,
+  UserInputError,
+} = require("apollo-server-express");
 
 const resolvers = {
   Query: {
     users: async () => {
-      return User.find().populate("books").populate("clubs");
+      try {
+        return await User.find().populate("books").populate("clubs");
+      } catch (error) {
+        throw new Error("Failed to fetch users");
+      }
     },
     user: async (parent, { username }) => {
-      return User.findOne({ username }).populate("books").populate("clubs");
+      try {
+        return await User.findOne({ username })
+          .populate("books")
+          .populate("clubs");
+      } catch (error) {
+        throw new Error("Failed to fetch user");
+      }
     },
     books: async () => {
-      return Book.find()
-        .populate("users")
-        .populate("ratings")
-        .populate("reviews");
+      try {
+        return await Book.find()
+          .populate("users")
+          .populate("ratings")
+          .populate("reviews");
+      } catch (error) {
+        throw new Error("Failed to fetch books");
+      }
     },
     book: async (parent, { bookId }) => {
-      console.log("getting book", bookId);
-      return Book.findOne({ _id: bookId })
-        .populate("users")
-        .populate("ratings")
-        .populate("reviews");
+      try {
+        return await Book.findOne({ _id: bookId })
+          .populate("users")
+          .populate("ratings")
+          .populate("reviews");
+      } catch (error) {
+        throw new Error("Failed to fetch book");
+      }
     },
     bookByTitle: async (parent, { title }) => {
-      return Book.findOne({ title })
-        .populate("users")
-        .populate("ratings")
-        .populate("reviews");
+      try {
+        return await Book.findOne({ title })
+          .populate("users")
+          .populate("ratings")
+          .populate("reviews");
+      } catch (error) {
+        throw new Error("Failed to fetch book by title");
+      }
     },
     clubs: async () => {
-      return Club.find().populate("books").populate("users");
+      try {
+        return await Club.find().populate("books").populate("users");
+      } catch (error) {
+        throw new Error("Failed to fetch clubs");
+      }
     },
     club: async (parent, { clubId }) => {
-      return Club.findOne({ _id: clubId }).populate("books").populate("users");
+      try {
+        return await Club.findOne({ _id: clubId })
+          .populate("books")
+          .populate("users");
+      } catch (error) {
+        throw new Error("Failed to fetch club");
+      }
     },
     me: async (parent, args, context) => {
       if (context.user) {
-        return User.findOne({ _id: context.user._id })
-          .populate("books")
-          .populate("clubs");
+        try {
+          return await User.findOne({ _id: context.user._id })
+            .populate("books")
+            .populate("clubs");
+        } catch (error) {
+          throw new Error("Failed to fetch user data");
+        }
       }
       throw new AuthenticationError("You need to be logged in!");
     },
     reviews: async () => {
-      return Review.find().populate();
+      try {
+        return await Review.find().populate();
+      } catch (error) {
+        throw new Error("Failed to fetch reviews");
+      }
     },
-    review: async (parent, { id }) => {
-      return Review.findOne({ _id: id }).populate();
+    review: async (parent, { reviewId }) => {
+      try {
+        return await Review.findOne({ _id: reviewId }).populate();
+      } catch (error) {
+        throw new Error("Failed to fetch review");
+      }
     },
   },
 
   Mutation: {
     addUser: async (parent, { username, email, password }) => {
-      const user = await User.create({ username, email, password });
-      const token = signToken(user);
-      return { token, user };
+      try {
+        const user = await User.create({ username, email, password });
+        const token = signToken(user);
+        return { token, user };
+      } catch (error) {
+        if (error.code === 11000) {
+          throw new UserInputError("Username or email already exists");
+        }
+        throw new Error("Failed to create user");
+      }
     },
     login: async (parent, { email, password }) => {
-      const user = await User.findOne({ email });
+      try {
+        const user = await User.findOne({ email });
 
-      if (!user) {
-        throw new AuthenticationError("No user found with this email address");
+        if (!user) {
+          throw new AuthenticationError(
+            "No user found with this email address"
+          );
+        }
+
+        const correctPw = await user.isCorrectPassword(password);
+
+        if (!correctPw) {
+          throw new AuthenticationError("Incorrect credentials");
+        }
+
+        const token = signToken(user);
+        return { token, user };
+      } catch (error) {
+        throw new AuthenticationError(error.message);
       }
-
-      const correctPw = await user.isCorrectPassword(password);
-
-      if (!correctPw) {
-        throw new AuthenticationError("Incorrect credentials");
-      }
-
-      const token = signToken(user);
-      return { token, user };
     },
     addBook: async (parent, { title, author, image, description }) => {
-      const book = await Book.create({ title, author, image, description });
-      return book;
+      try {
+        const book = await Book.create({
+          title,
+          author,
+          book_image: image,
+          description,
+        });
+        return book;
+      } catch (error) {
+        throw new Error("Failed to add book");
+      }
     },
-    addReview: async (parent, { bookId, reviewText, userId }, context) => {
-      if (!bookId || !reviewText || !userId) {
-        throw new Error("All fields are required");
+    addReview: async (parent, { bookId, reviewText }, context) => {
+      if (!context.user) {
+        throw new AuthenticationError("You need to be logged in!");
       }
 
-      const review = await Review.create({ bookId, reviewText, userId });
-      return review;
+      try {
+        if (!bookId || !reviewText) {
+          throw new UserInputError("All fields are required");
+        }
+
+        const review = await Review.create({
+          bookId,
+          reviewText,
+          userId: context.user._id,
+          username: context.user.username,
+        });
+
+        // Add review to the book's reviews array
+        await Book.findByIdAndUpdate(bookId, {
+          $push: { reviews: review._id },
+        });
+
+        return review;
+      } catch (error) {
+        throw new Error("Failed to add review");
+      }
     },
     addClub: async (parent, { name }) => {
-      const club = await Club.create({ name });
-      return club;
+      try {
+        const club = await Club.create({ name });
+        return club;
+      } catch (error) {
+        throw new Error("Failed to add club");
+      }
     },
     addBookToClub: async (parent, { clubId, bookId }, context) => {
-      await Club.findOneAndUpdate(
-        { _id: clubId },
-        { $addToSet: { books: bookId } }
-      );
-      return Club.findOne({ _id: clubId }).populate("books").populate("users");
-    },
-    addUserToClub: async (parent, { clubId, userId }, context) => {
-      if (context.user) {
-        await Club.findOneAndUpdate(
+      try {
+        const updatedClub = await Club.findOneAndUpdate(
           { _id: clubId },
-          { $addToSet: { users: userId } }
-        );
-        return Club.findOne({ _id: clubId })
+          { $addToSet: { books: bookId } },
+          { new: true }
+        )
           .populate("books")
           .populate("users");
+        return updatedClub;
+      } catch (error) {
+        throw new Error("Failed to add book to club");
       }
-      throw new AuthenticationError("You need to be logged in!");
     },
-    addRating: async (parent, { value, userId, bookId }) => {
-      const rating = await Rating.create({ value, userId, bookId });
-      return rating;
+    addUserToClub: async (parent, { clubId }, context) => {
+      if (!context.user) {
+        throw new AuthenticationError("You need to be logged in!");
+      }
+
+      try {
+        const updatedClub = await Club.findOneAndUpdate(
+          { _id: clubId },
+          { $addToSet: { users: context.user._id } },
+          { new: true }
+        )
+          .populate("books")
+          .populate("users");
+        return updatedClub;
+      } catch (error) {
+        throw new Error("Failed to add user to club");
+      }
+    },
+    addRating: async (parent, { value, bookId }, context) => {
+      if (!context.user) {
+        throw new AuthenticationError("You need to be logged in!");
+      }
+
+      try {
+        const rating = await Rating.create({
+          value,
+          userId: context.user._id,
+          bookId,
+        });
+        return rating;
+      } catch (error) {
+        throw new Error("Failed to add rating");
+      }
     },
     removeBook: async (parent, { bookId }) => {
-      const book = await Book.findOneAndDelete({ _id: bookId });
-      return book;
+      try {
+        const book = await Book.findOneAndDelete({ _id: bookId });
+        return book;
+      } catch (error) {
+        throw new Error("Failed to remove book");
+      }
     },
     removeReview: async (parent, { bookId, reviewId }) => {
-      const book = await Book.findOneAndUpdate(
-        { _id: bookId },
-        {
-          $pull: {
-            reviews: {
-              _id: reviewId,
+      try {
+        const book = await Book.findOneAndUpdate(
+          { _id: bookId },
+          {
+            $pull: {
+              reviews: { _id: reviewId },
             },
           },
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      ).populate("reviews");
-      return book;
+          { new: true, runValidators: true }
+        ).populate("reviews");
+        return book;
+      } catch (error) {
+        throw new Error("Failed to remove review");
+      }
     },
     removeRating: async (parent, { ratingId }) => {
-      const rating = await Rating.findOneAndDelete({ _id: ratingId });
-      return rating;
+      try {
+        const rating = await Rating.findOneAndDelete({ _id: ratingId });
+        return rating;
+      } catch (error) {
+        throw new Error("Failed to remove rating");
+      }
     },
-    addToBookshelf: async (parent, { bookId, userId }) => {
-      const updatedUser = await User.findOneAndUpdate(
-        { _id: userId },
-        { $addToSet: { books: bookId } },
-        { new: true }
-      ).populate("books");
-      return updatedUser;
+    addToBookshelf: async (parent, { bookId }, context) => {
+      if (!context.user) {
+        throw new AuthenticationError("You need to be logged in!");
+      }
+
+      try {
+        const updatedUser = await User.findOneAndUpdate(
+          { _id: context.user._id },
+          { $addToSet: { books: bookId } },
+          { new: true }
+        ).populate("books");
+        return updatedUser;
+      } catch (error) {
+        throw new Error("Failed to add book to bookshelf");
+      }
     },
   },
 };

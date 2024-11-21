@@ -2,11 +2,13 @@ import { Link } from "react-router-dom";
 import { Box, Heading, Text, Button, Image } from "@chakra-ui/react";
 
 const BookList = ({
-  books, // Changed from reads to books
+  books,
   title,
   showTitle = true,
   showUsername = true,
   showAuthor = true,
+  isMyReadsPage = false,
+  removeFromReads,
 }) => {
   if (!books.length) {
     return (
@@ -64,6 +66,15 @@ const BookList = ({
             <Button as={Link} to={`/books/${book._id}`} colorScheme="orange">
               View Details
             </Button>
+            {isMyReadsPage && (
+              <Button
+                colorScheme="red"
+                ml={4}
+                onClick={() => removeFromReads(book._id)}
+              >
+                Remove from My Reads
+              </Button>
+            )}
           </Box>
         </Box>
       ))}

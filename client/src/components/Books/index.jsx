@@ -11,7 +11,7 @@ import {
 } from "@chakra-ui/react";
 import { useQuery } from "@apollo/client";
 import { QUERY_BOOKS } from "../utils/queries"; // Adjust the query to fetch the bookshelf
-
+// import BookCard from "../components/BookCard"; // Import your BookCard component
 const Books = () => {
   const { loading, data, error } = useQuery(QUERY_BOOKS);
 

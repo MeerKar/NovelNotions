@@ -1,20 +1,52 @@
-import { Box, Image, Text, Button } from "@chakra-ui/react";
-import { Link as RouterLink } from "react-router-dom";
+// src/components/BookCard.jsx
 
-const BookCard = ({ title, author, image, bookId }) => {
+import { Link as RouterLink } from "react-router-dom";
+import {
+  Box,
+  Image,
+  Text,
+  Heading,
+  Button,
+  useColorModeValue,
+} from "@chakra-ui/react";
+
+const BookCard = 
+ ({title, author, image, bookId }) => {
+
+  const bg = useColorModeValue("white", "gray.700");
+  const hoverBg = useColorModeValue("gray.100", "gray.600");
+
   return (
-    <Box borderWidth="1px" borderRadius="lg" overflow="hidden">
-      <Image src={image} alt={title} />
+    <Box
+      key={bookId}
+      borderWidth="1px"
+      borderRadius="lg"
+      overflow="hidden"
+      bg={bg}
+      _hover={{
+        bg: hoverBg,
+      }}
+    >
+      {image && (
+        <Image
+          src={image}
+          alt={title}
+          objectFit="cover"
+          w="100%"
+          h="250px"
+          loading="lazy"
+        />
+      )}
       <Box p={6}>
-        <Text fontWeight="bold" fontSize="lg" mb={2}>
+        <Heading as="h3" size="md">
           {title}
-        </Text>
-        <Text mb={4}>{author}</Text>
+        </Heading>
+        <Text>{author}</Text>
         <Button
           as={RouterLink}
           to={`/books/${bookId}`}
           colorScheme="orange"
-          size="sm"
+          mt={2}
         >
           View Details
         </Button>

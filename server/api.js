@@ -2,7 +2,9 @@ const express = require("express");
 const axios = require("axios");
 const router = express.Router();
 
-const API_KEY = process.env.API_KEY; // Use the API key from environment variables
+const API_KEY = process.env.API_KEY;
+
+// "i4FQQY6lIjDIi8VeUhWduILpQYupmJBp";
 const BASE_URL = "https://api.nytimes.com/svc/books/v3/lists/current/";
 
 router.get("/bestsellers/:listName", async (req, res) => {

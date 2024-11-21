@@ -16,10 +16,10 @@ import MyReads from "./pages/MyReads";
 import MyClub from "./pages/MyClub";
 import Books from "./pages/Books";
 import ClubPage from "./pages/ClubPage";
-import Auth from "./utils/auth";
+import AuthService from "./utils/Auth";
 
 const ProtectedRoute = ({ element }) => {
-  return Auth.loggedIn() ? element : <Navigate to="/login" />;
+  return AuthService.loggedIn() ? element : <Navigate to="/login" />;
 };
 
 const router = createBrowserRouter([
@@ -28,58 +28,28 @@ const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorPage />,
     children: [
-      {
-        index: true,
-        element: <Home />,
-      },
-      {
-        path: "login",
-        element: <Login />,
-      },
-      {
-        path: "signup",
-        element: <Signup />,
-      },
+      { index: true, element: <Home /> },
+      { path: "login", element: <Login /> },
+      { path: "signup", element: <Signup /> },
       {
         path: "profiles/:username",
         element: <ProtectedRoute element={<Profile />} />,
       },
-      {
-        path: "me",
-        element: <ProtectedRoute element={<Profile />} />,
-      },
+      { path: "me", element: <ProtectedRoute element={<Profile />} /> },
       {
         path: "books/:id",
         element: <ProtectedRoute element={<SingleBook />} />,
       },
-      {
-        path: "clubs",
-        element: <ProtectedRoute element={<Clubs />} />,
-      },
+      { path: "clubs", element: <ProtectedRoute element={<Clubs />} /> },
       {
         path: "create-club",
         element: <ProtectedRoute element={<CreateClub />} />,
       },
-      {
-        path: "join-club",
-        element: <ProtectedRoute element={<JoinClub />} />,
-      },
-      {
-        path: "my-reads",
-        element: <ProtectedRoute element={<MyReads />} />,
-      },
-      {
-        path: "club/:id",
-        element: <ProtectedRoute element={<ClubPage />} />,
-      },
-      {
-        path: "my-club",
-        element: <ProtectedRoute element={<MyClub />} />,
-      },
-      {
-        path: "books",
-        element: <ProtectedRoute element={<Books />} />,
-      },
+      { path: "join-club", element: <ProtectedRoute element={<JoinClub />} /> },
+      { path: "my-reads", element: <ProtectedRoute element={<MyReads />} /> },
+      { path: "club/:id", element: <ProtectedRoute element={<ClubPage />} /> },
+      { path: "my-club", element: <ProtectedRoute element={<MyClub />} /> },
+      { path: "books", element: <ProtectedRoute element={<Books />} /> },
     ],
   },
 ]);

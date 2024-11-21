@@ -3,25 +3,21 @@ const typeDefs = `
     _id: ID
     username: String
     email: String
-    password: String
     books: [Book]
     clubs: [Club]
   }
 
   type Book {
-    id: ID!
+    _id: ID!
     title: String!
     author: String!
-    image: String
+    book_image: String
     description: String
-    review: String
     createdAt: String
     users: [User]
     ratings: [Rating]
     reviews: [Review]
   }
-
-  
 
   type Review {
     _id: ID!
@@ -29,7 +25,6 @@ const typeDefs = `
     createdAt: String!
     username: String!
   }
-
 
   type Club {
     _id: ID
@@ -68,15 +63,15 @@ const typeDefs = `
     addUser(username: String!, email: String!, password: String!): Auth
     login(email: String!, password: String!): Auth
     addBook(title: String!, author: String!, image: String, description: String): Book
-    addReview(bookId: ID!, reviewText: String!, userId: ID!): Review
+    addReview(bookId: ID!, reviewText: String!): Review
     addClub(name: String!): Club
     addBookToClub(clubId: ID!, bookId: ID!): Club
-    addUserToClub(clubId: ID!, userId: ID!): Club
-    addRating(value: Int!, userId: ID!, bookId: ID!): Rating
+    addUserToClub(clubId: ID!): Club
+    addRating(value: Int!, bookId: ID!): Rating
     removeBook(bookId: ID!): Book
     removeReview(bookId: ID!, reviewId: ID!): Book
     removeRating(ratingId: ID!): Rating
-    addToBookshelf(bookId: ID!, userId: ID!): User
+    addToBookshelf(bookId: ID!): User
   }
 `;
 
