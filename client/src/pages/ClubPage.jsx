@@ -13,15 +13,15 @@ import {
   useColorModeValue,
   useToast,
 } from "@chakra-ui/react";
-import AuthService from "../utils/Auth";
+// import AuthService from "../utils/Auth";
 import { getCurrentUser } from "../utils/currentUser";
 import { useState, useEffect } from "react";
 import DOMPurify from "dompurify";
 
 const ClubPage = () => {
   const { id } = useParams(); // Extract the club ID from the URL
-  const [club, setClub] = useState(null);
-  const [isJoined, setIsJoined] = useState(false);
+  const [club, setClub] = useState([]);
+  const [isJoined, setIsJoined] = useState([]);
   const toast = useToast();
   const currentUser = getCurrentUser();
 
