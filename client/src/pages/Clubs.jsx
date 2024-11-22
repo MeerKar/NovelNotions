@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Box,
   Flex,
@@ -81,24 +81,22 @@ const Clubs = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [joinedClubs, setJoinedClubs] = useState([]);
   const toast = useToast();
-  const currentUser = getCurrentUser();
+  const currentUser = useMemo(() => getCurrentUser(), []);
 
+  // Fetch clubs on component mount
   useEffect(() => {
     const fetchClubs = async () => {
-      // Fetch clubs from backend or use static data
-      // For this example, we'll use static data plus any from localStorage
       const savedClubs = JSON.parse(localStorage.getItem("clubs")) || [];
-      // Normalize savedClubs to have 'id' if they use '_id'
       const normalizedSavedClubs = savedClubs.map((club) => ({
         ...club,
         id: club._id || club.id,
       }));
       setClubs([...staticClubData, ...normalizedSavedClubs]);
     };
-
     fetchClubs();
   }, []);
 
+  // Load user's joined clubs from localStorage
   useEffect(() => {
     if (currentUser) {
       const userJoinedClubs =
@@ -108,54 +106,64 @@ const Clubs = () => {
   }, [currentUser]);
 
   // Handle joining a club
-  const handleJoinClub = (clubId) => {
-    if (!joinedClubs.includes(clubId)) {
-      const updatedJoinedClubs = [...joinedClubs, clubId];
-      setJoinedClubs(updatedJoinedClubs);
-      localStorage.setItem(
-        `joinedClubs_${currentUser.id}`,
-        JSON.stringify(updatedJoinedClubs)
-      );
-      toast({
-        title: "Joined Club",
-        description: "You have successfully joined the club.",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
+  const handleJoinClub = useCallback(
+    (clubId) => {
+      if (!joinedClubs.includes(clubId)) {
+        const updatedJoinedClubs = [...joinedClubs, clubId];
+        setJoinedClubs(updatedJoinedClubs);
+        localStorage.setItem(
+          `joinedClubs_${currentUser.id}`,
+          JSON.stringify(updatedJoinedClubs)
+        );
+        toast({
+          title: "Joined Club",
+          description: "You have successfully joined the club.",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    },
+    [joinedClubs, currentUser.id, toast]
+  );
 
   // Handle leaving a club
-  const handleLeaveClub = (clubId) => {
-    if (joinedClubs.includes(clubId)) {
-      const updatedJoinedClubs = joinedClubs.filter((id) => id !== clubId);
-      setJoinedClubs(updatedJoinedClubs);
-      localStorage.setItem(
-        `joinedClubs_${currentUser.id}`,
-        JSON.stringify(updatedJoinedClubs)
-      );
-      toast({
-        title: "Left Club",
-        description: "You have successfully left the club.",
-        status: "info",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
+  const handleLeaveClub = useCallback(
+    (clubId) => {
+      if (joinedClubs.includes(clubId)) {
+        const updatedJoinedClubs = joinedClubs.filter((id) => id !== clubId);
+        setJoinedClubs(updatedJoinedClubs);
+        localStorage.setItem(
+          `joinedClubs_${currentUser.id}`,
+          JSON.stringify(updatedJoinedClubs)
+        );
+        toast({
+          title: "Left Club",
+          description: "You have successfully left the club.",
+          status: "info",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    },
+    [joinedClubs, currentUser.id, toast]
+  );
 
-  // Define color schemes based on the current color mode
+  // Filter clubs based on the search term
+  const filteredClubs = useMemo(
+    () =>
+      clubs.filter((club) =>
+        club.name.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [clubs, searchTerm]
+  );
+
+  // UI color settings
   const navBgColor = useColorModeValue("#f8ede3", "#1A202C");
   const headingColor = useColorModeValue("gray.800", "white");
   const buttonColorScheme = "teal";
   const inputBg = useColorModeValue("white", "gray.700");
   const inputColor = useColorModeValue("gray.800", "white");
-
-  // Filter clubs based on search term
-  const filteredClubs = clubs.filter((club) =>
-    club.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <Container maxW="container.xl" py={8}>
@@ -170,12 +178,7 @@ const Clubs = () => {
         boxShadow="sm"
       >
         <Flex justify="space-between" align="center" flexWrap="wrap">
-          <Heading
-            as="h2"
-            size="lg"
-            color={headingColor}
-            mb={{ base: 4, md: 0 }}
-          >
+          <Heading as="h2" size="lg" color={headingColor}>
             Clubs
           </Heading>
           <Flex>
@@ -186,18 +189,15 @@ const Clubs = () => {
               colorScheme={buttonColorScheme}
               leftIcon={<FaPlus />}
               variant="solid"
-              aria-label="Create a new book club"
             >
               Create Club
             </Button>
-
             <Button
               as={Link}
               to="/my-club"
               mr={4}
               colorScheme={buttonColorScheme}
               variant="outline"
-              aria-label="View my club"
             >
               My Club
             </Button>
@@ -206,7 +206,6 @@ const Clubs = () => {
               to="/my-reads"
               colorScheme={buttonColorScheme}
               variant="outline"
-              aria-label="View my reads"
             >
               My Reads
             </Button>
@@ -217,7 +216,6 @@ const Clubs = () => {
                 variant="ghost"
                 onClick={() => AuthService.logout()}
                 leftIcon={<FaSignOutAlt />}
-                aria-label="Logout"
               >
                 Logout
               </Button>
@@ -242,7 +240,6 @@ const Clubs = () => {
             borderRadius="md"
             boxShadow="sm"
             _placeholder={{ color: "gray.400" }}
-            aria-label="Search Clubs"
           />
         </InputGroup>
       </Box>
@@ -276,7 +273,6 @@ const Clubs = () => {
           colorScheme={buttonColorScheme}
           leftIcon={<FaPlus />}
           size="lg"
-          aria-label="Start a new book club"
         >
           Start a New Club
         </Button>
