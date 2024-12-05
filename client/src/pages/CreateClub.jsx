@@ -1,15 +1,20 @@
-// src/pages/CreateClubPage.jsx
-
 import { useNavigate } from "react-router-dom";
-import { Container, Heading, Box, useColorModeValue } from "@chakra-ui/react";
+import { Container, Heading, Box, useColorModeValue, useToast } from "@chakra-ui/react";
 import ClubForm from "../components/ClubForm";
 
 const CreateClubPage = () => {
   const navigate = useNavigate();
+  const toast = useToast();
 
   const handleSuccess = (newClub) => {
-    // Optionally, display a success message or navigate to the new club's detail page
-    navigate(`/clubs/${newClub._id}`);
+    toast({
+      title: "Club Created",
+      description: `Your club "${newClub.name}" has been successfully created!`,
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
+    navigate(`/clubs/${newClub.id}`);
   };
 
   return (

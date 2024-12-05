@@ -1,5 +1,3 @@
-// src/pages/JoinClubPage.jsx
-
 import { useState } from "react";
 import { useQuery } from "@apollo/client";
 import { QUERY_CLUBS } from "../utils/queries";
@@ -21,8 +19,11 @@ import { SearchIcon } from "@chakra-ui/icons";
 import ClubCard from "../components/ClubCard";
 
 const JoinClubPage = () => {
-  const { loading, error, data } = useQuery(QUERY_CLUBS);
-  const [searchTerm, setSearchTerm] = useState("");
+  const { loading, error, data } = useQuery(QUERY_CLUBS, {
+    fetchPolicy: "cache-and-network", // Ensures fresh data without refetching too aggressively
+  });
+
+  const [searchTerm, setSearchTerm] = useState([]);
   const headingColor = useColorModeValue("teal.600", "teal.300");
 
   const handleSearch = (e) => {
@@ -52,13 +53,7 @@ const JoinClubPage = () => {
 
   return (
     <Container maxW="container.xl" py={8}>
-      <Heading
-        as="h1"
-        size="2xl"
-        mb={6}
-        color={headingColor}
-        // color={useColorModeValue("teal.600", "teal.300")}
-      >
+      <Heading as="h1" size="2xl" mb={6} color={headingColor}>
         Join a Club
       </Heading>
 

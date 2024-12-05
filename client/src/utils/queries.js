@@ -150,3 +150,16 @@ export const QUERY_SINGLE_CLUB = gql`
     }
   }
 `;
+// query MyClubs {
+//   myClubs {
+//     _id
+//     name
+//     description
+//     category
+//     image
+//     users {
+//       _id
+//       username
+//     }
+//   }
+// }
