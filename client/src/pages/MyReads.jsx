@@ -24,43 +24,39 @@ const MyReads = () => {
 
   // Get the current user
   const currentUser = AuthService.loggedIn() ? AuthService.getProfile() : null;
-
+const userId = currentUser?.id;
   useEffect(() => {
-    const fetchBooks = async () => {
-      if (!currentUser) return;
+  const fetchBooks = async () => {
+    if (!userId) return;
 
-      try {
-        setLoading(true);
+    try {
+      setError(null);
+      const savedBooksKey = `savedBooks_${userId}`;
+      const savedBooks = JSON.parse(localStorage.getItem(savedBooksKey)) || [];
 
-        // Fetch saved books from local storage
-        const savedBooksKey = `savedBooks_${currentUser.id}`;
-        const savedBooks = JSON.parse(localStorage.getItem(savedBooksKey)) || [];
+      const normalizedSavedBooks = savedBooks.map((book) => ({
+        bookId: book.primary_isbn10 || book._id,
+        title: book.title || "Unknown Title",
+        author: book.author || "Unknown Author",
+        book_image: book.book_image || "default_image_url_here",
+        description: book.description || "No description available.",
+        publisher: book.publisher || "Unknown Publisher",
+        rank: book.rank || null,
+        rank_last_week: book.rank_last_week || null,
+        weeks_on_list: book.weeks_on_list || null,
+      }));
 
-        // Normalize savedBooks to have a consistent structure with the SingleBook page
-        const normalizedSavedBooks = savedBooks.map((book) => ({
-          bookId: book.primary_isbn10 || book._id,
-          title: book.title || "Unknown Title",
-          author: book.author || "Unknown Author",
-          book_image: book.book_image || "default_image_url_here",
-          description: book.description || "No description available.",
-          publisher: book.publisher || "Unknown Publisher",
-          rank: book.rank || null,
-          rank_last_week: book.rank_last_week || null,
-          weeks_on_list: book.weeks_on_list || null,
-        }));
+      setBooks(normalizedSavedBooks);
+    } catch (error) {
+      console.error("Failed to fetch saved books:", error);
+      setError(error.message || "Failed to fetch saved books.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setBooks(normalizedSavedBooks);
-      } catch (error) {
-        console.error("Failed to fetch saved books:", error);
-        setError(error.message || "Failed to fetch saved books.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBooks();
-  }, [currentUser]);
-
+  fetchBooks();
+}, [userId]);
   // Define color schemes based on the current color mode
   const headingColor = useColorModeValue("gray.800", "white");
   const spinnerBgColor = useColorModeValue("#A9D6E5", "#F0EFEB");

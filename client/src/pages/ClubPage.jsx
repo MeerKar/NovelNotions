@@ -10,31 +10,27 @@ import {
   Button,
   Flex,
   Container,
-  useColorModeValue,
+  // useColorModeValue,
   useToast,
 } from "@chakra-ui/react";
-// import AuthService from "../utils/Auth";
-import { getCurrentUser } from "../utils/currentUser";
+// // import AuthService from "../utils/Auth";
+// import { getCurrentUser } from "../utils/currentUser";
 import { useState, useEffect } from "react";
 import DOMPurify from "dompurify";
 
 const ClubPage = () => {
-  const { id } = useParams(); // Extract the club ID from the URL
-  const [club, setClub] = useState([]);
-  const [isJoined, setIsJoined] = useState([]);
+  const { id } = useParams(); // Extract club ID from URL
+  const [club, setClub] = useState(null); // Single club data
+  const [isJoined, setIsJoined] = useState(false); // Join status
   const toast = useToast();
-  const currentUser = getCurrentUser();
 
   useEffect(() => {
-    // Fetch club data based on ID
+    console.log("Fetching club data...");
+
+    // Function to fetch the club data
     const fetchClub = () => {
-      // Retrieve clubs from localStorage or use static data
       const savedClubs = JSON.parse(localStorage.getItem("clubs")) || [];
-      // Normalize savedClubs to have 'id' if they use '_id'
-      const normalizedSavedClubs = savedClubs.map((club) => ({
-        ...club,
-        id: club._id || club.id,
-      }));
+     
 
       // Combine with staticClubData if necessary
       const staticClubData = [
@@ -94,31 +90,28 @@ const ClubPage = () => {
         },
       ];
 
-      const allClubs = [...staticClubData, ...normalizedSavedClubs];
+      
+      const allClubs = [...staticClubData, ...savedClubs];
       const foundClub = allClubs.find((c) => c.id === id);
-      setClub(foundClub);
 
-      // Check if the user has joined this club
-      if (currentUser && foundClub) {
+      if (foundClub) {
+        setClub(foundClub);
         const userJoinedClubs =
-          JSON.parse(localStorage.getItem(`joinedClubs_${currentUser.id}`)) ||
-          [];
+          JSON.parse(localStorage.getItem("joinedClubs")) || [];
         setIsJoined(userJoinedClubs.includes(foundClub.id));
+      } else {
+        console.error("Club not found.");
       }
     };
 
     fetchClub();
-  }, [id, currentUser]);
+  }, [id]); // Dependency only on "id"
 
   const handleJoin = () => {
-    if (!isJoined && currentUser) {
-      const userJoinedClubs =
-        JSON.parse(localStorage.getItem(`joinedClubs_${currentUser.id}`)) || [];
-      const updatedJoinedClubs = [...userJoinedClubs, club.id];
-      localStorage.setItem(
-        `joinedClubs_${currentUser.id}`,
-        JSON.stringify(updatedJoinedClubs)
-      );
+    if (club) {
+      const userJoinedClubs = JSON.parse(localStorage.getItem("joinedClubs")) || [];
+      const updatedClubs = [...userJoinedClubs, club.id];
+      localStorage.setItem("joinedClubs", JSON.stringify(updatedClubs));
       setIsJoined(true);
       toast({
         title: "Joined Club",
@@ -131,16 +124,10 @@ const ClubPage = () => {
   };
 
   const handleLeave = () => {
-    if (isJoined && currentUser) {
-      const userJoinedClubs =
-        JSON.parse(localStorage.getItem(`joinedClubs_${currentUser.id}`)) || [];
-      const updatedJoinedClubs = userJoinedClubs.filter(
-        (cId) => cId !== club.id
-      );
-      localStorage.setItem(
-        `joinedClubs_${currentUser.id}`,
-        JSON.stringify(updatedJoinedClubs)
-      );
+    if (club) {
+      const userJoinedClubs = JSON.parse(localStorage.getItem("joinedClubs")) || [];
+      const updatedClubs = userJoinedClubs.filter((cId) => cId !== club.id);
+      localStorage.setItem("joinedClubs", JSON.stringify(updatedClubs));
       setIsJoined(false);
       toast({
         title: "Left Club",
@@ -152,14 +139,9 @@ const ClubPage = () => {
     }
   };
 
-  const bgColor = useColorModeValue("gray.100", "gray.700");
-  const cardBg = useColorModeValue("white", "gray.800");
-  const textColor = useColorModeValue("gray.700", "gray.200");
-  const headingColor = useColorModeValue("teal.600", "teal.300");
-
   if (!club) {
     return (
-      <Flex justify="center" align="center" height="100vh" bg={bgColor}>
+      <Flex justify="center" align="center" height="100vh">
         <Text fontSize="xl" color="gray.500">
           Club not found.
         </Text>
@@ -171,52 +153,29 @@ const ClubPage = () => {
 
   return (
     <Container maxW="container.md" py={8}>
-      <Box
-        borderWidth="1px"
-        borderRadius="lg"
-        overflow="hidden"
-        bg={cardBg}
-        boxShadow="lg"
-      >
+      <Box borderWidth="1px" borderRadius="lg" overflow="hidden">
         <Image
-          src={
-            club.image || "https://via.placeholder.com/400x200?text=No+Image"
-          }
+          src={club.image || "https://via.placeholder.com/400x200"}
           alt={`${club.name} Image`}
           width="100%"
           height="300px"
           objectFit="cover"
         />
-
         <Box p="6">
-          <Box display="flex" alignItems="baseline">
-            {club.category && (
-              <Badge borderRadius="full" px="2" colorScheme="teal">
-                {club.category}
-              </Badge>
-            )}
-          </Box>
-
-          <Heading as="h2" size="lg" mt="2" mb="4" color={headingColor}>
+          <Badge borderRadius="full" px="2" colorScheme="teal">
+            {club.category}
+          </Badge>
+          <Heading as="h2" size="lg" mt="2" mb="4">
             {club.name}
           </Heading>
-
-          {/* Render HTML description safely */}
-          <Text
-            color={textColor}
-            mb="4"
-            dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
-          />
-
-          {/* Join/Leave Button */}
-          {currentUser && (
-            <Button
-              colorScheme={isJoined ? "red" : "teal"}
-              onClick={isJoined ? handleLeave : handleJoin}
-            >
-              {isJoined ? "Leave Club" : "Join Club"}
-            </Button>
-          )}
+          <Text dangerouslySetInnerHTML={{ __html: sanitizedDescription }} />
+          <Button
+            mt="4"
+            colorScheme={isJoined ? "red" : "teal"}
+            onClick={isJoined ? handleLeave : handleJoin}
+          >
+            {isJoined ? "Leave Club" : "Join Club"}
+          </Button>
         </Box>
       </Box>
     </Container>

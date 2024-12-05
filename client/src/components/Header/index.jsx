@@ -25,7 +25,7 @@ import {
   FaSignOutAlt,
   FaSignInAlt,
   FaUserPlus,
-  FaUser,
+  // FaUser,
 } from "react-icons/fa";
 import Auth from "../../utils/Auth";
 
@@ -65,7 +65,7 @@ const Header = () => {
               <Heading
                 size="md"
                 fontWeight="bold"
-                fontStyle="italic"
+                fontStyle="bolder"
                 color={headingColor}
                 _hover={{ textDecoration: "none", color: "teal.500" }}
               >
@@ -84,7 +84,7 @@ const Header = () => {
             {/* Desktop Navigation */}
             {!isMobile && (
               <>
-                <Tooltip label="Join a Book Club" aria-label="Join a Book Club">
+                <Tooltip label="Clubs" aria-label="Clubs">
                   <Link
                     as={RouterLink}
                     to="/clubs"
@@ -95,7 +95,7 @@ const Header = () => {
                   >
                     <Flex alignItems="center">
                       <FaUserFriends style={{ marginRight: "4px" }} />
-                      Join a Book Club
+                     Clubs
                     </Flex>
                   </Link>
                 </Tooltip>
@@ -123,7 +123,7 @@ const Header = () => {
                     fontWeight="medium"
                     _hover={{ textDecoration: "none", color: linkHoverColor }}
                   >
-                    My Reads
+                    Tales Collected
                   </Link>
                 </Tooltip>
               </>
