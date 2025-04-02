@@ -18,37 +18,63 @@ import {
   useToast,
   Divider,
   Link,
+  Icon,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Stack,
+  HStack,
+  useDisclosure,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
 } from "@chakra-ui/react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
-import { FaExclamationTriangle } from "react-icons/fa";
+import {
+  FaExclamationTriangle,
+  FaBookmark,
+  FaShare,
+  FaStar,
+  FaShoppingCart,
+} from "react-icons/fa";
 import { useMutation } from "@apollo/client";
 import Auth from "../utils/Auth";
 import { ADD_BOOK } from "../utils/mutations";
 import { QUERY_ME } from "../utils/queries";
 import CommentForm from "../components/CommentForm";
-import WaveDivider from "../components/WaveDivider"; // Ensure this component exists
-import { fetchBestSellers } from "../components/API"; // Ensure this function exists and is correctly exported
+import WaveDivider from "../components/WaveDivider";
+import { fetchBestSellers } from "../components/API";
+import { motion } from "framer-motion";
+
+const MotionBox = motion(Box);
 
 const SingleBook = () => {
-  const { id } = useParams(); // Assuming 'id' is the ISBN-10 or _id
+  const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isInReadingList, setIsInReadingList] = useState(false);
 
   // Color Modes
-  const bgColor = useColorModeValue("#A9D6E5", "#F0EFEB");
+  const bgColor = useColorModeValue("white", "gray.800");
   const textColor = useColorModeValue("gray.700", "gray.200");
   const badgeColor = useColorModeValue("teal", "orange");
+  const cardBg = useColorModeValue("gray.50", "gray.700");
 
   // Mutation Hook
   const [addToBooks] = useMutation(ADD_BOOK, {
     update(cache, { data: { addBook } }) {
       try {
         const { me } = cache.readQuery({ query: QUERY_ME });
-
         cache.writeQuery({
           query: QUERY_ME,
           data: {
@@ -70,7 +96,7 @@ const SingleBook = () => {
         duration: 5000,
         isClosable: true,
       });
-      navigate("/my-reads");
+      setIsInReadingList(true);
     },
     onError: (err) => {
       toast({
@@ -101,15 +127,27 @@ const SingleBook = () => {
         const fetchedBooksArrays = await Promise.all(fetchedBooksPromises);
         const allBooks = fetchedBooksArrays.flat();
 
-        console.log("Fetched Books:", allBooks);
-
-        // Find the book by ISBN-10 or _id
         const foundBook = allBooks.find(
           (bookItem) => bookItem.primary_isbn10 === id || bookItem._id === id
         );
-        console.log("Found Book:", foundBook);
 
-        setBook(foundBook);
+        if (foundBook) {
+          setBook(foundBook);
+          // Check if book is in user's reading list
+          if (Auth.loggedIn()) {
+            const currentUser = Auth.getProfile();
+            const savedBooksKey = `savedBooks_${currentUser.id}`;
+            const existingBooks =
+              JSON.parse(localStorage.getItem(savedBooksKey)) || [];
+            setIsInReadingList(
+              existingBooks.some(
+                (savedBook) =>
+                  savedBook.bookId ===
+                  (foundBook.primary_isbn10 || foundBook._id)
+              )
+            );
+          }
+        }
       } catch (err) {
         setError(err.message || "Failed to fetch book data.");
         console.error("Error fetching book data:", err);
@@ -137,40 +175,53 @@ const SingleBook = () => {
     }
 
     try {
-      // Call the mutation to add the book to the backend
       await addToBooks({
         variables: { bookId: book.primary_isbn10 || book._id },
       });
 
-      // Also save the book to local storage
       const currentUser = Auth.getProfile();
       const savedBooksKey = `savedBooks_${currentUser.id}`;
-      const existingBooks = JSON.parse(localStorage.getItem(savedBooksKey)) || [];
+      const existingBooks =
+        JSON.parse(localStorage.getItem(savedBooksKey)) || [];
 
-     if (!existingBooks.some(
-        (savedBook) => savedBook.bookId === (book.primary_isbn10 || book._id)
-      )) {
-      const newBook = {
-        ...book,
-        bookId: book.primary_isbn10 || book._id,
-      };
-      existingBooks.push(newBook);
-      localStorage.setItem(savedBooksKey, JSON.stringify(existingBooks));
+      if (
+        !existingBooks.some(
+          (savedBook) => savedBook.bookId === (book.primary_isbn10 || book._id)
+        )
+      ) {
+        const newBook = {
+          ...book,
+          bookId: book.primary_isbn10 || book._id,
+        };
+        existingBooks.push(newBook);
+        localStorage.setItem(savedBooksKey, JSON.stringify(existingBooks));
+      }
+
+      toast({
+        title: "Book added to My Reads.",
+        description: "You have successfully added the book to your reads.",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+
+      navigate("/my-reads");
+    } catch (err) {
+      console.error("Error adding book:", err);
     }
+  };
 
-    toast({
-      title: "Book added to My Reads.",
-      description: "You have successfully added the book to your reads.",
-      status: "success",
-      duration: 5000,
-      isClosable: true,
-    });
-
-    navigate("/my-reads");
-  } catch (err) {
-    console.error("Error adding book:", err);
-  }
-};
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: book.title,
+        text: `Check out "${book.title}" by ${book.author}`,
+        url: window.location.href,
+      });
+    } else {
+      onOpen();
+    }
+  };
 
   // Loading State
   if (loading) {
@@ -207,7 +258,7 @@ const SingleBook = () => {
         boxShadow="lg"
       >
         <Flex direction="column" align="center" justify="center" minH="100vh">
-          <FaExclamationTriangle size={48} color="red" />
+          <Icon as={FaExclamationTriangle} boxSize={12} color="red.500" />
           <Text fontSize="xl" color="red.500" mt={4} textAlign="center">
             An error occurred: {error}
           </Text>
@@ -250,141 +301,197 @@ const SingleBook = () => {
     );
   }
 
-  // Main Book Details
   return (
     <Box bg={bgColor} minH="100vh" py={10}>
-      {/* Wave Divider at the Top */}
-      <WaveDivider />
-
-      {/* Container for Book Details */}
-      <Container maxW="container.lg" p={6}>
-        <Flex
-          direction={{ base: "column", md: "row" }}
-          align="center"
-          bg={bgColor}
-          p={6}
-          borderRadius="md"
-          boxShadow="lg"
+      <Container maxW="container.xl">
+        <MotionBox
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          {/* Book Image */}
-          {book.book_image && (
-            <Box flexShrink={0} mb={{ base: 4, md: 0 }} mr={{ md: 8 }}>
+          <Button
+            leftIcon={<ArrowBackIcon />}
+            variant="ghost"
+            mb={6}
+            onClick={() => navigate(-1)}
+          >
+            Back to Books
+          </Button>
+
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8}>
+            {/* Book Image */}
+            <Box>
               <Image
                 src={book.book_image}
                 alt={book.title}
-                borderRadius="md"
-                boxShadow="md"
-                maxW={{ base: "200px", md: "300px" }}
+                borderRadius="lg"
+                boxShadow="xl"
                 w="100%"
                 h="auto"
+                objectFit="cover"
+                transition="transform 0.3s"
+                _hover={{ transform: "scale(1.02)" }}
               />
             </Box>
-          )}
 
-          {/* Book Details */}
-          <VStack align="start" spacing={4} w="full">
-            {/* Back Button */}
-            <Button
-              variant="ghost"
-              colorScheme="teal"
-              leftIcon={<ArrowBackIcon />}
-              onClick={() => navigate(-1)}
-            >
-              Back to List
-            </Button>
-
-            {/* Title and Author */}
-            {book.title && (
-              <Heading as="h1" size="xl" color={textColor}>
+            {/* Book Details */}
+            <VStack align="start" spacing={6}>
+              <Heading size="2xl" color={textColor}>
                 {book.title}
               </Heading>
-            )}
-            {book.author && (
-              <Text fontSize="lg" color="gray.600">
+              <Text fontSize="xl" color="gray.500">
                 by {book.author}
               </Text>
-            )}
-
-            {/* Description */}
-            {book.description && (
-              <Text fontSize="md" color={textColor}>
+              <HStack spacing={4}>
+                <Badge colorScheme={badgeColor} fontSize="md" p={2}>
+                  Rank: #{book.rank}
+                </Badge>
+                {book.weeks_on_list > 0 && (
+                  <Badge colorScheme="purple" fontSize="md" p={2}>
+                    {book.weeks_on_list} weeks on list
+                  </Badge>
+                )}
+              </HStack>
+              <Text fontSize="lg" color={textColor}>
                 {book.description}
               </Text>
-            )}
+              <Stack direction={{ base: "column", md: "row" }} spacing={4}>
+                <Button
+                  leftIcon={<FaBookmark />}
+                  colorScheme="teal"
+                  size="lg"
+                  onClick={handleAddToBooks}
+                  isDisabled={isInReadingList}
+                >
+                  {isInReadingList ? "In Reading List" : "Add to Reading List"}
+                </Button>
+                <Button
+                  leftIcon={<FaShare />}
+                  colorScheme="blue"
+                  size="lg"
+                  onClick={handleShare}
+                >
+                  Share
+                </Button>
+                <Button
+                  leftIcon={<FaShoppingCart />}
+                  colorScheme="green"
+                  size="lg"
+                  onClick={() => window.open(book.amazon_product_url, "_blank")}
+                >
+                  Buy Now
+                </Button>
+              </Stack>
+            </VStack>
+          </SimpleGrid>
 
-            {/* Additional Details */}
-            <SimpleGrid columns={[1, 2]} spacing={2} w="100%">
-              {book.primary_isbn10 && (
-                <Badge colorScheme={badgeColor} fontSize="md" p={2}>
-                  ISBN-10: {book.primary_isbn10}
-                </Badge>
-              )}
-              {book.publisher && (
-                <Badge colorScheme="blue" fontSize="md" p={2}>
-                  Publisher: {book.publisher}
-                </Badge>
-              )}
-              {book.rank && (
-                <Badge colorScheme="purple" fontSize="md" p={2}>
-                  Rank: {book.rank}
-                </Badge>
-              )}
-              {book.rank_last_week && (
-                <Badge colorScheme="orange" fontSize="md" p={2}>
-                  Rank Last Week: {book.rank_last_week}
-                </Badge>
-              )}
-              {book.weeks_on_list && (
-                <Badge colorScheme="teal" fontSize="md" p={2}>
-                  Weeks on List: {book.weeks_on_list}
-                </Badge>
-              )}
-            </SimpleGrid>
-
-            {/* Buy Links */}
-            {book.buy_links && book.buy_links.length > 0 && (
-              <VStack align="start" spacing={1}>
-                <Text fontWeight="bold" color={textColor}>
-                  Buy Now:
-                </Text>
-                {book.buy_links.map((link, index) => (
-                  <Link
-                    key={index}
-                    href={link.url}
-                    isExternal
-                    color="teal.500"
-                    _hover={{ textDecoration: "underline", color: "teal.700" }}
-                  >
-                    {link.name}
-                  </Link>
-                ))}
-              </VStack>
-            )}
-
-            {/* Add to My Reads Button */}
-            <Button
-              colorScheme="orange"
-              size="md"
-              onClick={handleAddToBooks}
-              alignSelf="stretch"
-              leftIcon={<FaExclamationTriangle />}
-              _hover={{ transform: "scale(1.02)" }}
-            >
-              Add to My Reads
-            </Button>
-          </VStack>
-        </Flex>
-
-        {/* Divider */}
-        <Divider my={10} />
-
-        {/* Comment Section */}
-        <Box>
-          <CommentForm bookId={id} />
-        </Box>
+          {/* Additional Information */}
+          <Box mt={12}>
+            <Tabs variant="soft-rounded" colorScheme="teal">
+              <TabList>
+                <Tab>Details</Tab>
+                <Tab>Reviews</Tab>
+                <Tab>Discussion</Tab>
+              </TabList>
+              <TabPanels>
+                <TabPanel>
+                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                    <Box bg={cardBg} p={6} borderRadius="lg">
+                      <Heading size="md" mb={4}>
+                        Book Details
+                      </Heading>
+                      <Stack spacing={3}>
+                        <Text>
+                          <strong>Publisher:</strong> {book.publisher}
+                        </Text>
+                        <Text>
+                          <strong>ISBN:</strong> {book.primary_isbn10}
+                        </Text>
+                        <Text>
+                          <strong>Price:</strong> ${book.price}
+                        </Text>
+                        <Text>
+                          <strong>Age Group:</strong> {book.age_group}
+                        </Text>
+                      </Stack>
+                    </Box>
+                    <Box bg={cardBg} p={6} borderRadius="lg">
+                      <Heading size="md" mb={4}>
+                        Contributor
+                      </Heading>
+                      <Stack spacing={3}>
+                        <Text>
+                          <strong>Author:</strong> {book.author}
+                        </Text>
+                        <Text>
+                          <strong>Contributor:</strong> {book.contributor}
+                        </Text>
+                      </Stack>
+                    </Box>
+                  </SimpleGrid>
+                </TabPanel>
+                <TabPanel>
+                  <Box bg={cardBg} p={6} borderRadius="lg">
+                    <Heading size="md" mb={4}>
+                      Reviews
+                    </Heading>
+                    <Text>Reviews coming soon...</Text>
+                  </Box>
+                </TabPanel>
+                <TabPanel>
+                  <Box bg={cardBg} p={6} borderRadius="lg">
+                    <Heading size="md" mb={4}>
+                      Discussion
+                    </Heading>
+                    <CommentForm bookId={book.primary_isbn10} />
+                  </Box>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+          </Box>
+        </MotionBox>
       </Container>
 
-      {/* Wave Divider at the Bottom */}
+      {/* Share Modal */}
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Share Book</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <Stack spacing={4}>
+              <Button
+                leftIcon={<FaShare />}
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  toast({
+                    title: "Link copied!",
+                    status: "success",
+                    duration: 2000,
+                    isClosable: true,
+                  });
+                }}
+              >
+                Copy Link
+              </Button>
+              <Button
+                leftIcon={<FaShare />}
+                onClick={() =>
+                  window.open(
+                    `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                      `Check out "${book.title}" by ${book.author}`
+                    )}&url=${encodeURIComponent(window.location.href)}`,
+                    "_blank"
+                  )
+                }
+              >
+                Share on Twitter
+              </Button>
+            </Stack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
       <WaveDivider />
     </Box>
   );

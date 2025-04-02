@@ -13,6 +13,15 @@ import {
   Stack,
   useColorModeValue,
   Button,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  useToast,
+  Input,
+  InputGroup,
+  InputLeftElement,
 } from "@chakra-ui/react";
 import {
   FaBook,
@@ -21,52 +30,51 @@ import {
   FaChild,
   FaChalkboardTeacher,
   FaExclamationTriangle,
+  FaSearch,
 } from "react-icons/fa";
 import BookCard from "../components/BookCard";
-import WaveDivider from "../components/WaveDivider"; // Import the WaveDivider component
-import { fetchBestSellers } from "../components/API"; // Ensure this path is correct
+import WaveDivider from "../components/WaveDivider";
+import { fetchBestSellers } from "../components/API";
 import { motion } from "framer-motion";
 
-// Define motion-enabled Box
 const MotionBox = motion(Box);
 
-// Categories with unique background colors
 const categories = [
   {
     name: "Fiction",
     listName: "hardcover-fiction",
     icon: FaBook,
-    bg: "linear-gradient(to right, #FFDEE9, #B5FFFC)",
+    bg: "linear-gradient(135deg, #FFDEE9 0%, #B5FFFC 100%)",
   },
   {
     name: "Nonfiction",
     listName: "hardcover-nonfiction",
     icon: FaUser,
-    bg: "linear-gradient(to right, #D4FC79, #96E6A1)",
+    bg: "linear-gradient(135deg, #D4FC79 0%, #96E6A1 100%)",
   },
   {
     name: "Biography",
     listName: "hardcover-nonfiction",
     icon: FaChalkboardTeacher,
-    bg: "linear-gradient(to right, #A1C4FD, #C2E9FB)",
+    bg: "linear-gradient(135deg, #A1C4FD 0%, #C2E9FB 100%)",
   },
   {
     name: "Kids",
     listName: "childrens-middle-grade-hardcover",
     icon: FaChild,
-    bg: "linear-gradient(to right, #FAD0C4, #FFD1FF)",
+    bg: "linear-gradient(135deg, #FAD0C4 0%, #FFD1FF 100%)",
   },
   {
     name: "Technology",
     listName: "science",
     icon: FaLaptop,
-    bg: "linear-gradient(to right, #C2E9FB, #A1C4FD)",
+    bg: "linear-gradient(135deg, #C2E9FB 0%, #A1C4FD 100%)",
   },
   {
     name: "Thriller",
     listName: "hardcover-fiction",
     icon: FaExclamationTriangle,
-    bg: "linear-gradient(to right, #FBD3E9, #BB377D)",
+    bg: "linear-gradient(135deg, #FBD3E9 0%, #BB377D 100%)",
   },
 ];
 
@@ -76,6 +84,8 @@ const Books = () => {
   const [books, setBooks] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const toast = useToast();
 
   const bgColor = useColorModeValue("gray.50", "gray.800");
   const headerColor = useColorModeValue("teal.600", "teal.300");
@@ -87,18 +97,36 @@ const Books = () => {
         for (const category of categories) {
           const fetchedBooks = await fetchBestSellers(category.listName);
           booksByCategory[category.name] = fetchedBooks;
-          console.log(`Books for category ${category.name}:`, fetchedBooks);
-          await delay(500); // Reduced delay for better user experience
+          await delay(500);
         }
         setBooks(booksByCategory);
       } catch (error) {
         setError(error.message || "Failed to fetch books.");
+        toast({
+          title: "Error",
+          description: "Failed to fetch books. Please try again later.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
       } finally {
         setLoading(false);
       }
     };
     getBooks();
-  }, []);
+  }, [toast]);
+
+  const filteredBooks = Object.entries(books).reduce(
+    (acc, [category, booksList]) => {
+      acc[category] = booksList.filter(
+        (book) =>
+          book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          book.author.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      return acc;
+    },
+    {}
+  );
 
   if (loading) {
     return (
@@ -151,7 +179,10 @@ const Books = () => {
   return (
     <Box bg={bgColor} minH="100vh" py={10}>
       {/* Hero Section */}
-      <Box
+      <MotionBox
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
         bgGradient="linear(to-r, #D1E8E2, blue.500)"
         color="white"
         py={20}
@@ -163,9 +194,23 @@ const Books = () => {
         <Heading as="h1" size="2xl" mb={4}>
           Every Book Opens a World of Possibilities
         </Heading>
-        <Text fontSize="xl">
+        <Text fontSize="xl" mb={6}>
           Discover the bestsellers across various genres curated just for you.
         </Text>
+        <InputGroup maxW="600px" mx="auto">
+          <InputLeftElement pointerEvents="none">
+            <Icon as={FaSearch} color="gray.400" />
+          </InputLeftElement>
+          <Input
+            placeholder="Search books by title or author..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            bg="white"
+            color="gray.800"
+            _placeholder={{ color: "gray.500" }}
+            _focus={{ borderColor: "teal.500" }}
+          />
+        </InputGroup>
         <Button
           mt={6}
           colorScheme="teal"
@@ -175,57 +220,45 @@ const Books = () => {
         >
           Explore Now
         </Button>
-      </Box>
+      </MotionBox>
 
       <Container maxW="container.xl">
-        {" "}
-        {/* Increased from container.lg to container.xl */}
-        <Stack spacing={16}>
-          {categories.map((category, index) => (
-            <MotionBox
-              key={index}
-              bg={category.bg}
-              p={8}
-              borderRadius="md"
-              boxShadow="md"
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: index * 0.2 }}
-              viewport={{ once: true }}
-            >
-              {/* Category Header */}
-              <Flex align="center" mb={6}>
-                <Icon
-                  as={category.icon}
-                  w={8}
-                  h={8}
-                  color={headerColor}
-                  mr={3}
-                />
-                <Heading as="h2" size="lg">
-                  {category.name}
-                </Heading>
-              </Flex>
-
-              {/* Book Grid */}
-              <SimpleGrid columns={[2, 3, 4, 5, 6]} spacing={6}>
-                {books[category.name].map((book, idx) => (
-                  <BookCard
-                    key={idx}
-                    title={book.title}
-                    author={book.author}
-                    image={book.book_image}
-                    bookId={book.primary_isbn10}
-                    rating={book.rating} // Optional: If your data includes ratings
-                  />
-                ))}
-              </SimpleGrid>
-            </MotionBox>
-          ))}
-        </Stack>
+        <Tabs variant="soft-rounded" colorScheme="teal" align="center" mb={8}>
+          <TabList>
+            {categories.map((category, index) => (
+              <Tab key={index}>
+                <Icon as={category.icon} mr={2} />
+                {category.name}
+              </Tab>
+            ))}
+          </TabList>
+          <TabPanels>
+            {categories.map((category, index) => (
+              <TabPanel key={index}>
+                <MotionBox
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                >
+                  <SimpleGrid columns={[2, 3, 4, 5]} spacing={6}>
+                    {filteredBooks[category.name]?.map((book, idx) => (
+                      <BookCard
+                        key={idx}
+                        title={book.title}
+                        author={book.author}
+                        image={book.book_image}
+                        bookId={book.primary_isbn10}
+                        rating={book.rank}
+                      />
+                    ))}
+                  </SimpleGrid>
+                </MotionBox>
+              </TabPanel>
+            ))}
+          </TabPanels>
+        </Tabs>
       </Container>
 
-      {/* Wave Divider at the Bottom */}
       <WaveDivider />
     </Box>
   );
