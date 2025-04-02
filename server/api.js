@@ -10,13 +10,12 @@ router.get("/bestsellers/:listName", async (req, res) => {
   const { listName } = req.params;
   try {
     console.log(`Fetching best sellers for list: ${listName}`);
-    console.log(`Using API key: ${API_KEY}`);
 
     const response = await axios.get(
       `${BASE_URL}${listName}.json?api-key=${API_KEY}`
     );
 
-    console.log(`Response received:`, response.data);
+    console.log(`Response received for ${listName}`);
     res.json(response.data.results.books);
   } catch (error) {
     console.error(
