@@ -37,10 +37,6 @@ const apolloServer = new ApolloServer({
     console.error("GraphQL Error:", error);
     return error;
   },
-  context: async ({ req }) => {
-    // Add any necessary context here
-    return { req };
-  },
 });
 
 // Start server function
@@ -48,9 +44,17 @@ const startServer = async () => {
   try {
     // Start Apollo Server
     await apolloServer.start();
+    console.log("Apollo Server started");
 
     // Apply Apollo middleware
-    app.use("/graphql", expressMiddleware(apolloServer));
+    app.use(
+      "/graphql",
+      cors(),
+      express.json(),
+      expressMiddleware(apolloServer, {
+        context: async ({ req }) => ({ req }),
+      })
+    );
 
     // Serve static files in production
     if (process.env.NODE_ENV === "production") {
@@ -63,11 +67,17 @@ const startServer = async () => {
 
     // Wait for database connection
     await new Promise((resolve, reject) => {
+      if (db.readyState === 1) {
+        console.log("MongoDB already connected");
+        resolve();
+        return;
+      }
+
       const timeout = setTimeout(() => {
         reject(new Error("MongoDB connection timeout after 30 seconds"));
       }, 30000);
 
-      db.once("open", () => {
+      db.once("connected", () => {
         clearTimeout(timeout);
         console.log("MongoDB connected successfully");
         resolve();

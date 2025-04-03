@@ -1,41 +1,44 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 
-mongoose.set("strictQuery", true);
-
 const connectDB = async () => {
   try {
     const mongoURI =
       process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/novelnotions";
+    console.log("Attempting to connect to MongoDB...");
 
-    await mongoose.connect(mongoURI, {
+    const conn = await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000,
-      heartbeatFrequencyMS: 2000,
+      serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
+      family: 4, // Use IPv4, skip trying IPv6
+      retryWrites: true,
+      w: "majority",
     });
 
-    console.log("MongoDB connection initialized");
+    console.log(`MongoDB connected: ${conn.connection.host}`);
+    return conn;
   } catch (err) {
     console.error("MongoDB connection error:", err);
-    process.exit(1);
+    // Don't exit process here, let the server handle the error
+    throw err;
   }
 };
 
 // Initialize connection
-connectDB();
+const dbConnection = connectDB();
 
-// Log any errors after initial connection
+// Handle connection events
 mongoose.connection.on("error", (err) => {
-  console.error("MongoDB error after initial connection:", err);
+  console.error("MongoDB error:", err);
 });
 
 mongoose.connection.on("disconnected", () => {
-  console.log("MongoDB disconnected. Attempting to reconnect...");
+  console.log("MongoDB disconnected");
 });
 
-mongoose.connection.on("reconnected", () => {
-  console.log("MongoDB reconnected successfully");
+mongoose.connection.on("connected", () => {
+  console.log("MongoDB connected");
 });
 
 module.exports = mongoose.connection;
