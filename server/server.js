@@ -18,7 +18,19 @@ const app = express();
 // Enable logging in development
 if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));
+} else {
+  // In production, log to console
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} ${req.method} ${req.url}`);
+    next();
+  });
 }
+
+// Basic error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send("Something broke!");
+});
 
 // Enable CORS
 app.use(cors());
@@ -26,6 +38,11 @@ app.use(cors());
 // Express middleware
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+
+// Serve static files in production
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "../client/dist")));
+}
 
 // Create Apollo Server
 const apolloServer = new ApolloServer({
@@ -42,53 +59,51 @@ const apolloServer = new ApolloServer({
 // Start server function
 const startServer = async () => {
   try {
-    // Start Apollo Server
+    console.log("Starting server initialization...");
+
+    // Wait for database connection first
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("MongoDB connection timeout after 30 seconds"));
+      }, 30000);
+
+      if (db.readyState === 1) {
+        clearTimeout(timeout);
+        console.log("MongoDB already connected");
+        resolve();
+      } else {
+        db.once("connected", () => {
+          clearTimeout(timeout);
+          console.log("MongoDB connected successfully");
+          resolve();
+        });
+
+        db.on("error", (err) => {
+          clearTimeout(timeout);
+          console.error("MongoDB connection error:", err);
+          reject(err);
+        });
+      }
+    });
+
+    // Start Apollo Server after DB connection
     await apolloServer.start();
-    console.log("Apollo Server started");
+    console.log("Apollo Server started successfully");
 
     // Apply Apollo middleware
     app.use(
       "/graphql",
-      cors(),
-      express.json(),
       expressMiddleware(apolloServer, {
         context: async ({ req }) => ({ req }),
       })
     );
 
-    // Serve static files in production
+    // Handle all other routes in production
     if (process.env.NODE_ENV === "production") {
-      app.use(express.static(path.join(__dirname, "../client/dist")));
-
       app.get("*", (req, res) => {
         res.sendFile(path.join(__dirname, "../client/dist/index.html"));
       });
     }
-
-    // Wait for database connection
-    await new Promise((resolve, reject) => {
-      if (db.readyState === 1) {
-        console.log("MongoDB already connected");
-        resolve();
-        return;
-      }
-
-      const timeout = setTimeout(() => {
-        reject(new Error("MongoDB connection timeout after 30 seconds"));
-      }, 30000);
-
-      db.once("connected", () => {
-        clearTimeout(timeout);
-        console.log("MongoDB connected successfully");
-        resolve();
-      });
-
-      db.on("error", (err) => {
-        clearTimeout(timeout);
-        console.error("MongoDB connection error:", err);
-        reject(err);
-      });
-    });
 
     // Start Express server
     const httpServer = app.listen(PORT, () => {

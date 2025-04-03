@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 
+mongoose.set("strictQuery", true);
+
 const connectDB = async () => {
   try {
     const mongoURI =
@@ -10,23 +12,29 @@ const connectDB = async () => {
     const conn = await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
-      family: 4, // Use IPv4, skip trying IPv6
+      serverSelectionTimeoutMS: 30000,
+      family: 4,
       retryWrites: true,
       w: "majority",
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
     });
 
     console.log(`MongoDB connected: ${conn.connection.host}`);
     return conn;
   } catch (err) {
     console.error("MongoDB connection error:", err);
-    // Don't exit process here, let the server handle the error
     throw err;
   }
 };
 
 // Initialize connection
-const dbConnection = connectDB();
+const dbConnection = connectDB().catch((err) => {
+  console.error("Failed to establish initial MongoDB connection:", err);
+  process.exit(1);
+});
 
 // Handle connection events
 mongoose.connection.on("error", (err) => {
@@ -34,11 +42,19 @@ mongoose.connection.on("error", (err) => {
 });
 
 mongoose.connection.on("disconnected", () => {
-  console.log("MongoDB disconnected");
+  console.log("MongoDB disconnected. Attempting to reconnect...");
+  // Attempt to reconnect
+  connectDB().catch((err) => {
+    console.error("Failed to reconnect to MongoDB:", err);
+  });
 });
 
 mongoose.connection.on("connected", () => {
   console.log("MongoDB connected");
+});
+
+mongoose.connection.on("reconnected", () => {
+  console.log("MongoDB reconnected successfully");
 });
 
 module.exports = mongoose.connection;
