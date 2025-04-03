@@ -56,36 +56,37 @@ const startServer = async () => {
 
     // Wait for MongoDB connection
     await new Promise((resolve, reject) => {
-      const connectWithRetry = () => {
-        if (db.readyState === 1) {
-          console.log("MongoDB already connected");
-          resolve();
-          return;
-        }
-
-        console.log("Attempting to connect to MongoDB...");
+      if (db.readyState === 1) {
+        console.log("MongoDB already connected");
+        resolve();
+      } else {
+        console.log("Waiting for MongoDB connection...");
 
         const timeout = setTimeout(() => {
-          console.log("MongoDB connection attempt timed out, retrying...");
-          db.removeAllListeners();
-          connectWithRetry();
-        }, 10000);
+          reject(new Error("MongoDB connection timeout after 30 seconds"));
+        }, 30000);
 
-        db.once("connected", () => {
+        const cleanup = () => {
           clearTimeout(timeout);
+          db.removeListener("connected", handleConnect);
+          db.removeListener("error", handleError);
+        };
+
+        const handleConnect = () => {
+          cleanup();
           console.log("MongoDB connected successfully");
           resolve();
-        });
+        };
 
-        db.once("error", (err) => {
-          clearTimeout(timeout);
+        const handleError = (err) => {
+          cleanup();
           console.error("MongoDB connection error:", err);
-          console.log("Retrying connection in 5 seconds...");
-          setTimeout(connectWithRetry, 5000);
-        });
-      };
+          reject(err);
+        };
 
-      connectWithRetry();
+        db.once("connected", handleConnect);
+        db.once("error", handleError);
+      }
     });
 
     // Initialize Apollo Server
@@ -137,11 +138,10 @@ const startServer = async () => {
     httpServer.keepAliveTimeout = 65000; // Slightly higher than Heroku's 60 second timeout
     httpServer.headersTimeout = 66000; // Slightly higher than keepAliveTimeout
 
-    // Graceful shutdown handler
-    const shutdown = async (signal) => {
-      console.log(`\nReceived ${signal} signal. Starting graceful shutdown...`);
+    // Handle process signals
+    const cleanup = async (signal) => {
+      console.log(`\nReceived ${signal} signal. Starting cleanup...`);
 
-      let exitCode = 0;
       try {
         // Stop accepting new connections
         if (httpServer) {
@@ -151,43 +151,40 @@ const startServer = async () => {
           });
         }
 
-        // Close MongoDB connection
-        if (db.readyState === 1) {
-          await db.close();
-          console.log("MongoDB connection closed");
-        }
-
         // Stop Apollo Server
         if (apolloServer) {
           await apolloServer.stop();
           console.log("Apollo Server stopped");
         }
 
-        console.log("Graceful shutdown completed");
-      } catch (error) {
-        console.error("Error during shutdown:", error);
-        exitCode = 1;
-      }
+        // Close MongoDB connection
+        if (db.readyState === 1) {
+          await db.close();
+          console.log("MongoDB connection closed");
+        }
 
-      // Exit process
-      process.exit(exitCode);
+        console.log("Cleanup completed");
+        process.exit(0);
+      } catch (error) {
+        console.error("Error during cleanup:", error);
+        process.exit(1);
+      }
     };
 
-    // Handle various shutdown signals
-    const signals = ["SIGTERM", "SIGINT", "SIGUSR2"];
-    signals.forEach((signal) => {
-      process.on(signal, () => shutdown(signal));
+    // Handle shutdown signals
+    ["SIGTERM", "SIGINT", "SIGUSR2"].forEach((signal) => {
+      process.on(signal, () => cleanup(signal));
     });
 
     // Handle uncaught errors
     process.on("unhandledRejection", (err) => {
       console.error("Unhandled Promise Rejection:", err);
-      shutdown("UNHANDLED_REJECTION");
+      cleanup("UNHANDLED_REJECTION");
     });
 
     process.on("uncaughtException", (err) => {
       console.error("Uncaught Exception:", err);
-      shutdown("UNCAUGHT_EXCEPTION");
+      cleanup("UNCAUGHT_EXCEPTION");
     });
   } catch (error) {
     console.error("Server startup failed:", error);
