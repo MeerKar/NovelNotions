@@ -3,14 +3,14 @@ require("dotenv").config(); // Load environment variables from .env file
 const express = require("express");
 const path = require("path");
 const db = require("./config/connection");
-const { ApolloServer } = require("apollo-server-express");
+const { ApolloServer } = require("@apollo/server");
+const { expressMiddleware } = require("@apollo/server/express4");
 const { typeDefs, resolvers } = require("./schemas");
 const morgan = require("morgan");
 const cors = require("cors");
 
 const apiRoutes = require("./api"); // Import the API routes
 const { authMiddleware } = require("./utils/auth");
-const { expressMiddleware } = require("@apollo/server/express4");
 
 const PORT = process.env.PORT || 3001;
 const app = express();
@@ -36,21 +36,20 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// Create Apollo Server
-const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  context: ({ req }) => ({ req }),
-  formatError: (error) => {
-    console.error("GraphQL Error:", error);
-    return error;
-  },
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send("Something broke!");
+});
+
+// Create Apollo Server
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  formatError: (error) => {
+    console.error("GraphQL Error:", error);
+    return error;
+  },
 });
 
 // Start server function
@@ -60,7 +59,14 @@ const startServer = async () => {
     await server.start();
 
     // Apply Apollo middleware
-    server.applyMiddleware({ app });
+    app.use(
+      "/graphql",
+      cors(),
+      express.json(),
+      expressMiddleware(server, {
+        context: async ({ req }) => ({ req }),
+      })
+    );
 
     // Wait for database connection
     await new Promise((resolve, reject) => {
@@ -77,9 +83,7 @@ const startServer = async () => {
     // Start Express server
     app.listen(PORT, () => {
       console.log(`API server running on port ${PORT}!`);
-      console.log(
-        `Use GraphQL at http://localhost:${PORT}${server.graphqlPath}`
-      );
+      console.log(`Use GraphQL at http://localhost:${PORT}/graphql`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);
