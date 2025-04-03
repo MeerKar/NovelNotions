@@ -152,17 +152,6 @@ const startServer = async () => {
       console.error("Uncaught Exception:", err);
       cleanup("UNCAUGHT_EXCEPTION");
     });
-
-    // Keep the process alive
-    process.on("SIGTERM", () => {
-      console.log("Received SIGTERM signal. Starting graceful shutdown...");
-      cleanup("SIGTERM");
-    });
-
-    process.on("SIGINT", () => {
-      console.log("Received SIGINT signal. Starting graceful shutdown...");
-      cleanup("SIGINT");
-    });
   } catch (error) {
     console.error("Server startup failed:", error);
     process.exit(1);
