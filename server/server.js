@@ -46,6 +46,7 @@ if (process.env.NODE_ENV === "production") {
 }
 
 let httpServer = null;
+let apolloServer = null;
 
 // Start server function
 const startServer = async () => {
@@ -90,7 +91,7 @@ const startServer = async () => {
     });
 
     // Initialize Apollo Server
-    const apolloServer = new ApolloServer({
+    apolloServer = new ApolloServer({
       typeDefs,
       resolvers,
       formatError: (error) => {

@@ -23,6 +23,7 @@ const connectDB = async () => {
 
     const conn = await mongoose.connect(process.env.MONGODB_URI, options);
 
+    // Event handlers
     mongoose.connection.on("connected", () => {
       console.log("MongoDB connected successfully");
     });
@@ -39,7 +40,9 @@ const connectDB = async () => {
       console.log("MongoDB reconnected");
     });
 
-    process.on("SIGINT", async () => {
+    // Handle process termination
+    const handleShutdown = async (signal) => {
+      console.log(`\nReceived ${signal} signal. Closing MongoDB connection...`);
       try {
         await mongoose.connection.close();
         console.log("MongoDB connection closed through app termination");
@@ -48,7 +51,12 @@ const connectDB = async () => {
         console.error("Error closing MongoDB connection:", err);
         process.exit(1);
       }
-    });
+    };
+
+    // Register signal handlers
+    process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+    process.on("SIGINT", () => handleShutdown("SIGINT"));
+    process.on("SIGUSR2", () => handleShutdown("SIGUSR2"));
 
     return conn;
   } catch (error) {
