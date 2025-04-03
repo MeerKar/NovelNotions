@@ -45,6 +45,8 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../client/dist")));
 }
 
+let server = null;
+
 // Start server function
 const startServer = async () => {
   try {
@@ -52,15 +54,16 @@ const startServer = async () => {
 
     // Wait for MongoDB connection
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error("MongoDB connection timeout after 30 seconds"));
-      }, 30000);
-
       if (db.readyState === 1) {
-        clearTimeout(timeout);
         console.log("MongoDB already connected");
         resolve();
       } else {
+        console.log("Waiting for MongoDB connection...");
+
+        const timeout = setTimeout(() => {
+          reject(new Error("MongoDB connection timeout after 30 seconds"));
+        }, 30000);
+
         db.once("connected", () => {
           clearTimeout(timeout);
           console.log("MongoDB connected successfully");
@@ -110,7 +113,7 @@ const startServer = async () => {
     }
 
     // Start server
-    const server = app.listen(PORT, "0.0.0.0", () => {
+    server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`GraphQL at http://localhost:${PORT}/graphql`);
       console.log(`Environment: ${process.env.NODE_ENV}`);
@@ -118,41 +121,55 @@ const startServer = async () => {
 
     // Graceful shutdown
     const shutdown = async (signal) => {
-      console.log(`Received ${signal} signal`);
-      server.close(() => {
-        console.log("HTTP server closed");
-        db.close().then(() => {
-          console.log("MongoDB connection closed");
-          process.exit(0);
-        });
-      });
+      console.log(`\nReceived ${signal} signal. Starting graceful shutdown...`);
 
-      // Force exit if graceful shutdown fails
-      setTimeout(() => {
-        console.error(
-          "Could not close connections in time, forcefully shutting down"
-        );
+      // First, stop accepting new requests
+      if (server) {
+        server.close(() => {
+          console.log("HTTP server closed");
+        });
+      }
+
+      try {
+        // Close MongoDB connection
+        if (db.readyState === 1) {
+          await db.close();
+          console.log("MongoDB connection closed");
+        }
+
+        // Stop Apollo Server
+        if (apolloServer) {
+          await apolloServer.stop();
+          console.log("Apollo Server stopped");
+        }
+
+        console.log("Graceful shutdown completed");
+        process.exit(0);
+      } catch (error) {
+        console.error("Error during shutdown:", error);
         process.exit(1);
-      }, 10000);
+      }
     };
 
+    // Handle shutdown signals
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
+
+    // Handle uncaught errors
+    process.on("unhandledRejection", (err) => {
+      console.error("Unhandled Promise Rejection:", err);
+      shutdown("UNHANDLED_REJECTION");
+    });
+
+    process.on("uncaughtException", (err) => {
+      console.error("Uncaught Exception:", err);
+      shutdown("UNCAUGHT_EXCEPTION");
+    });
   } catch (error) {
     console.error("Server startup failed:", error);
     process.exit(1);
   }
 };
-
-// Global error handlers
-process.on("unhandledRejection", (err) => {
-  console.error("Unhandled Promise Rejection:", err);
-});
-
-process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err);
-  process.exit(1);
-});
 
 // Start the server
 startServer();
