@@ -23,7 +23,7 @@ cat > package.json << 'EOF'
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build"
+    "build": "./node_modules/.bin/vite build"
   },
   "dependencies": {
     "@apollo/client": "^3.7.14",
@@ -54,25 +54,22 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
-    minify: true,
-    rollupOptions: {
-      external: ['react', 'react-dom'],
-      output: {
-        globals: {
-          react: 'React',
-          'react-dom': 'ReactDOM',
-        },
-      },
-    },
-  },
+    minify: true
+  }
 })
 EOF
 
 # Install dependencies
 npm install
 
-# Build
-npm run build
+# Ensure vite is available in node_modules/.bin
+if [ ! -f "node_modules/.bin/vite" ]; then
+  echo "Vite binary not found, installing explicitly..."
+  npm install --save-dev vite@4.4.5
+fi
+
+# Build using explicit path
+./node_modules/.bin/vite build
 
 # Return to root
 cd .. 
