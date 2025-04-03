@@ -21,7 +21,6 @@ cat > package.json << 'EOF'
 {
   "name": "client",
   "private": true,
-  "type": "module",
   "scripts": {
     "build": "vite build"
   },
@@ -45,12 +44,12 @@ cat > package.json << 'EOF'
 }
 EOF
 
-# Create vite.config.js
+# Create vite.config.js using CommonJS format
 cat > vite.config.js << 'EOF'
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+const { defineConfig } = require('vite')
+const react = require('@vitejs/plugin-react')
 
-export default defineConfig({
+module.exports = defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
@@ -62,11 +61,44 @@ EOF
 # Install dependencies
 npm install
 
-# Install Vite globally (this helps ensure npx can find it)
-npm install -g vite@4.4.5
+# Create a temporary index.html if it doesn't exist
+if [ ! -f "index.html" ]; then
+  cat > index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Novel Notions</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+EOF
+fi
 
-# Build using npx
-npx vite build
+# Ensure src directory exists
+mkdir -p src
+
+# Create minimal main.jsx if it doesn't exist
+if [ ! -f "src/main.jsx" ]; then
+  cat > src/main.jsx << 'EOF'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
+EOF
+fi
+
+# Build using local vite
+./node_modules/.bin/vite build --config vite.config.js
 
 # Return to root
 cd .. 
