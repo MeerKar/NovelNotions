@@ -11,8 +11,8 @@ cd client
 # Clean up
 rm -rf node_modules dist
 
-# Install Vite and its dependencies first
-npm install vite@4.4.5 @vitejs/plugin-react@4.0.0
+# Install dependencies first
+npm install
 
 # Create a temporary package.json with minimal dependencies
 cat > package.json << 'EOF'
@@ -90,12 +90,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 )
 EOF
 
-echo "Installing client dependencies..."
-npm install
-
 echo "Building client..."
-# Use local vite directly from node_modules
-./node_modules/.bin/vite build
+# Use npx with exact path to vite
+npx ./node_modules/vite/bin/vite.js build
 
 echo "Client build complete. Returning to root..."
 cd ..
