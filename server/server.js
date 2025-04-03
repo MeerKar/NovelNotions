@@ -55,42 +55,7 @@ const startServer = async () => {
     console.log(`Environment: ${process.env.NODE_ENV}`);
     console.log(`Port: ${PORT}`);
 
-    // Wait for MongoDB connection
-    await new Promise((resolve, reject) => {
-      if (db.readyState === 1) {
-        console.log("MongoDB already connected");
-        resolve();
-      } else {
-        console.log("Waiting for MongoDB connection...");
-
-        const timeout = setTimeout(() => {
-          reject(new Error("MongoDB connection timeout after 30 seconds"));
-        }, 30000);
-
-        const cleanup = () => {
-          clearTimeout(timeout);
-          db.removeListener("connected", handleConnect);
-          db.removeListener("error", handleError);
-        };
-
-        const handleConnect = () => {
-          cleanup();
-          console.log("MongoDB connected successfully");
-          resolve();
-        };
-
-        const handleError = (err) => {
-          cleanup();
-          console.error("MongoDB connection error:", err);
-          reject(err);
-        };
-
-        db.once("connected", handleConnect);
-        db.once("error", handleError);
-      }
-    });
-
-    // Initialize Apollo Server
+    // Initialize Apollo Server first
     apolloServer = new ApolloServer({
       typeDefs,
       resolvers,
@@ -186,6 +151,17 @@ const startServer = async () => {
     process.on("uncaughtException", (err) => {
       console.error("Uncaught Exception:", err);
       cleanup("UNCAUGHT_EXCEPTION");
+    });
+
+    // Keep the process alive
+    process.on("SIGTERM", () => {
+      console.log("Received SIGTERM signal. Starting graceful shutdown...");
+      cleanup("SIGTERM");
+    });
+
+    process.on("SIGINT", () => {
+      console.log("Received SIGINT signal. Starting graceful shutdown...");
+      cleanup("SIGINT");
     });
   } catch (error) {
     console.error("Server startup failed:", error);
