@@ -43,7 +43,7 @@ import {
   FaShoppingCart,
 } from "react-icons/fa";
 import { useMutation } from "@apollo/client";
-import Auth from "../utils/Auth";
+import Auth from "../utils/auth";
 import { ADD_BOOK } from "../utils/mutations";
 import { QUERY_ME } from "../utils/queries";
 import CommentForm from "../components/CommentForm";

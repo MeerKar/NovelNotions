@@ -44,7 +44,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import BookCard from "../components/BookCard";
-import AuthService from "../utils/Auth";
+import Auth from "../utils/auth";
 
 const MotionBox = motion(Box);
 
@@ -62,13 +62,13 @@ const MyReads = () => {
   const textColor = colorMode === "light" ? "gray.800" : "gray.100";
 
   // Get the current user
-  const currentUser = AuthService.loggedIn() ? AuthService.getProfile() : null;
+  const currentUser = Auth.loggedIn() ? Auth.getProfile() : null;
   const userId = currentUser?.id;
 
   useEffect(() => {
     const fetchSavedBooks = () => {
       try {
-        if (!AuthService.loggedIn()) {
+        if (!Auth.loggedIn()) {
           setError("Please log in to view your saved books.");
           setLoading(false);
           return;

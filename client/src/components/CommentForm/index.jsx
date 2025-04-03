@@ -9,7 +9,7 @@ import {
   Heading,
   useToast,
 } from "@chakra-ui/react";
-import Auth from "../../utils/Auth";
+import Auth from "../../utils/auth";
 
 const CommentForm = ({ bookId, onAddComment }) => {
   const [reviewText, setReviewText] = useState("");

@@ -17,8 +17,20 @@ import {
   useColorModeValue,
   useBreakpointValue,
   Avatar,
+  Stack,
+  Collapse,
+  Icon,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  useDisclosure,
 } from "@chakra-ui/react";
-import { ChevronDownIcon } from "@chakra-ui/icons";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  HamburgerIcon,
+  CloseIcon,
+} from "@chakra-ui/icons";
 import {
   FaBook,
   FaUserFriends,
@@ -27,9 +39,12 @@ import {
   FaUserPlus,
   // FaUser,
 } from "react-icons/fa";
-import Auth from "../../utils/Auth";
+import Auth from "../../utils/auth";
 
 const Header = () => {
+  const { isOpen, onToggle } = useDisclosure();
+  const isLoggedIn = Auth.loggedIn();
+
   const logout = () => {
     Auth.logout();
   };
@@ -79,7 +94,7 @@ const Header = () => {
         <Spacer />
 
         {/* Navigation Links */}
-        {Auth.loggedIn() ? (
+        {isLoggedIn ? (
           <Flex alignItems="center">
             {/* Desktop Navigation */}
             {!isMobile && (
@@ -95,7 +110,7 @@ const Header = () => {
                   >
                     <Flex alignItems="center">
                       <FaUserFriends style={{ marginRight: "4px" }} />
-                     Clubs
+                      Clubs
                     </Flex>
                   </Link>
                 </Tooltip>
