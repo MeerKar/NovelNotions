@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 
+mongoose.set("strictQuery", true);
+
 const connectDB = async () => {
   try {
     const mongoURI =
@@ -10,7 +12,7 @@ const connectDB = async () => {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
+      heartbeatFrequencyMS: 2000,
     });
 
     console.log("MongoDB connection initialized");

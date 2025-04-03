@@ -27,21 +27,6 @@ app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-// Serve static files in production
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../client/dist")));
-
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../client/dist/index.html"));
-  });
-}
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send("Something broke!");
-});
-
 // Create Apollo Server
 const apolloServer = new ApolloServer({
   typeDefs,
@@ -52,6 +37,10 @@ const apolloServer = new ApolloServer({
     console.error("GraphQL Error:", error);
     return error;
   },
+  context: async ({ req }) => {
+    // Add any necessary context here
+    return { req };
+  },
 });
 
 // Start server function
@@ -61,14 +50,16 @@ const startServer = async () => {
     await apolloServer.start();
 
     // Apply Apollo middleware
-    app.use(
-      "/graphql",
-      cors(),
-      express.json(),
-      expressMiddleware(apolloServer, {
-        context: async ({ req }) => ({ req }),
-      })
-    );
+    app.use("/graphql", expressMiddleware(apolloServer));
+
+    // Serve static files in production
+    if (process.env.NODE_ENV === "production") {
+      app.use(express.static(path.join(__dirname, "../client/dist")));
+
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(__dirname, "../client/dist/index.html"));
+      });
+    }
 
     // Wait for database connection
     await new Promise((resolve, reject) => {
