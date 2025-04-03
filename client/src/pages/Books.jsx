@@ -1,6 +1,6 @@
 // src/pages/Books.jsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Box,
   Flex,
@@ -22,6 +22,10 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
 } from "@chakra-ui/react";
 import {
   FaBook,
@@ -31,6 +35,7 @@ import {
   FaChalkboardTeacher,
   FaExclamationTriangle,
   FaSearch,
+  FaSync,
 } from "react-icons/fa";
 import BookCard from "../components/BookCard";
 import WaveDivider from "../components/WaveDivider";
@@ -78,118 +83,99 @@ const categories = [
   },
 ];
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 const Books = () => {
   const [books, setBooks] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState({});
+  const [error, setError] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const toast = useToast();
 
   const bgColor = useColorModeValue("gray.50", "gray.800");
   const headerColor = useColorModeValue("teal.600", "teal.300");
 
-  useEffect(() => {
-    const getBooks = async () => {
+  const fetchCategoryBooks = useCallback(
+    async (category) => {
+      const controller = new AbortController();
+
       try {
-        const booksByCategory = {};
-        for (const category of categories) {
-          const fetchedBooks = await fetchBestSellers(category.listName);
-          booksByCategory[category.name] = fetchedBooks;
-          await delay(500);
-        }
-        setBooks(booksByCategory);
+        setLoading((prev) => ({ ...prev, [category.name]: true }));
+        setError((prev) => ({ ...prev, [category.name]: null }));
+
+        const fetchedBooks = await fetchBestSellers(category.listName, {
+          signal: controller.signal,
+        });
+
+        setBooks((prev) => ({
+          ...prev,
+          [category.name]: fetchedBooks,
+        }));
       } catch (error) {
-        setError(error.message || "Failed to fetch books.");
+        if (error.name === "AbortError") return;
+
+        console.error(`Error fetching ${category.name} books:`, error);
+        setError((prev) => ({
+          ...prev,
+          [category.name]: error.message,
+        }));
+
         toast({
-          title: "Error",
-          description: "Failed to fetch books. Please try again later.",
+          title: `Error loading ${category.name} books`,
+          description: error.message,
           status: "error",
           duration: 5000,
           isClosable: true,
         });
       } finally {
-        setLoading(false);
+        setLoading((prev) => ({ ...prev, [category.name]: false }));
       }
+
+      return () => controller.abort();
+    },
+    [toast]
+  );
+
+  useEffect(() => {
+    const fetchAllBooks = async () => {
+      const promises = categories.map((category) =>
+        fetchCategoryBooks(category)
+      );
+      await Promise.allSettled(promises);
     };
-    getBooks();
-  }, [toast]);
+
+    fetchAllBooks();
+  }, [fetchCategoryBooks]);
+
+  const handleRetry = async (category) => {
+    await fetchCategoryBooks(category);
+  };
 
   const filteredBooks = Object.entries(books).reduce(
     (acc, [category, booksList]) => {
+      if (!booksList) return acc;
+
       acc[category] = booksList.filter(
         (book) =>
-          book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          book.author.toLowerCase().includes(searchQuery.toLowerCase())
+          book.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          book.author?.toLowerCase().includes(searchQuery.toLowerCase())
       );
       return acc;
     },
     {}
   );
 
-  if (loading) {
-    return (
-      <Flex
-        direction="column"
-        align="center"
-        justify="center"
-        minH="100vh"
-        bg={bgColor}
-      >
-        <Spinner
-          size="xl"
-          thickness="4px"
-          speed="0.65s"
-          emptyColor="gray.200"
-          color="teal.500"
-        />
-        <Text mt={4} fontSize="lg" color="teal.500">
-          Loading bestsellers...
-        </Text>
-      </Flex>
-    );
-  }
-
-  if (error) {
-    return (
-      <Flex
-        direction="column"
-        align="center"
-        justify="center"
-        minH="100vh"
-        bg={bgColor}
-        px={4}
-      >
-        <Icon as={FaExclamationTriangle} boxSize={12} color="red.500" />
-        <Text fontSize="xl" color="red.500" mt={4} textAlign="center">
-          An error occurred: {error}
-        </Text>
-        <Button
-          mt={6}
-          colorScheme="teal"
-          onClick={() => window.location.reload()}
-        >
-          Retry
-        </Button>
-      </Flex>
-    );
-  }
-
   return (
-    <Box bg={bgColor} minH="100vh" py={10}>
-      {/* Hero Section */}
+    <Box bg={bgColor} minH="100vh" py={8}>
       <MotionBox
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        bgGradient="linear(to-r, #D1E8E2, blue.500)"
-        color="white"
-        py={20}
-        px={[4, 6, 8]}
+        transition={{ duration: 0.5 }}
         textAlign="center"
-        borderRadius="md"
-        mb={10}
+        py={20}
+        px={6}
+        bg={`linear-gradient(135deg, ${useColorModeValue(
+          "#f6f6f6, #fff",
+          "#2d3748, #1a202c"
+        )})`}
       >
         <Heading as="h1" size="2xl" mb={4}>
           Every Book Opens a World of Possibilities
@@ -211,15 +197,6 @@ const Books = () => {
             _focus={{ borderColor: "teal.500" }}
           />
         </InputGroup>
-        <Button
-          mt={6}
-          colorScheme="teal"
-          size="lg"
-          _hover={{ transform: "scale(1.05)" }}
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        >
-          Explore Now
-        </Button>
       </MotionBox>
 
       <Container maxW="container.xl">
@@ -240,18 +217,56 @@ const Books = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
-                  <SimpleGrid columns={[2, 3, 4, 5]} spacing={6}>
-                    {filteredBooks[category.name]?.map((book, idx) => (
-                      <BookCard
-                        key={idx}
-                        title={book.title}
-                        author={book.author}
-                        image={book.book_image}
-                        bookId={book.primary_isbn10}
-                        rating={book.rank}
-                      />
-                    ))}
-                  </SimpleGrid>
+                  {loading[category.name] ? (
+                    <Flex
+                      direction="column"
+                      align="center"
+                      justify="center"
+                      py={10}
+                    >
+                      <Spinner size="xl" color="teal.500" mb={4} />
+                      <Text>Loading {category.name} books...</Text>
+                    </Flex>
+                  ) : error[category.name] ? (
+                    <Alert
+                      status="error"
+                      variant="subtle"
+                      flexDirection="column"
+                      alignItems="center"
+                      justifyContent="center"
+                      textAlign="center"
+                      height="200px"
+                      borderRadius="lg"
+                    >
+                      <AlertIcon boxSize="40px" mr={0} />
+                      <AlertTitle mt={4} mb={1} fontSize="lg">
+                        Failed to load {category.name} books
+                      </AlertTitle>
+                      <AlertDescription maxWidth="sm" mb={4}>
+                        {error[category.name]}
+                      </AlertDescription>
+                      <Button
+                        leftIcon={<FaSync />}
+                        colorScheme="teal"
+                        onClick={() => handleRetry(category)}
+                      >
+                        Retry
+                      </Button>
+                    </Alert>
+                  ) : (
+                    <SimpleGrid columns={[2, 3, 4, 5]} spacing={6}>
+                      {filteredBooks[category.name]?.map((book, idx) => (
+                        <BookCard
+                          key={`${book.primary_isbn10}-${idx}`}
+                          title={book.title}
+                          author={book.author}
+                          image={book.book_image}
+                          bookId={book.primary_isbn10}
+                          rating={book.rank}
+                        />
+                      ))}
+                    </SimpleGrid>
+                  )}
                 </MotionBox>
               </TabPanel>
             ))}
