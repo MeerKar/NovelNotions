@@ -11,11 +11,15 @@ cd client
 # Clean up
 rm -rf node_modules dist
 
+# Install Vite and its dependencies first
+npm install vite@4.4.5 @vitejs/plugin-react@4.0.0
+
 # Create a temporary package.json with minimal dependencies
 cat > package.json << 'EOF'
 {
   "name": "client",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -41,12 +45,12 @@ cat > package.json << 'EOF'
 }
 EOF
 
-# Create vite.config.js using CommonJS format
+# Create vite.config.js using ES modules
 cat > vite.config.js << 'EOF'
-const { defineConfig } = require('vite')
-const react = require('@vitejs/plugin-react')
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-module.exports = defineConfig({
+export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist'
@@ -89,12 +93,9 @@ EOF
 echo "Installing client dependencies..."
 npm install
 
-echo "Installing Vite globally..."
-npm install -g vite@4.4.5
-
 echo "Building client..."
-# Use npx to ensure we're using the local version first, falling back to global
-npx --no-install vite build
+# Use local vite directly from node_modules
+./node_modules/.bin/vite build
 
 echo "Client build complete. Returning to root..."
 cd ..
