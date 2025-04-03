@@ -1,5 +1,5 @@
 import ReactDOM from "react-dom/client";
-import { ChakraProvider } from "@chakra-ui/react";
+import { ChakraProvider, ColorModeScript } from "@chakra-ui/react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Navigate } from "react-router-dom";
 import App from "./App";
@@ -17,6 +17,7 @@ import MyClub from "./pages/MyClub";
 import Books from "./pages/Books";
 import ClubPage from "./pages/ClubPage";
 import AuthService from "./utils/Auth";
+import theme from "./theme";
 
 const ProtectedRoute = ({ element }) => {
   return AuthService.loggedIn() ? element : <Navigate to="/login" />;
@@ -55,7 +56,10 @@ const router = createBrowserRouter([
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <ChakraProvider>
-    <RouterProvider router={router} />
-  </ChakraProvider>
+  <>
+    <ColorModeScript initialColorMode={theme.config.initialColorMode} />
+    <ChakraProvider theme={theme}>
+      <RouterProvider router={router} />
+    </ChakraProvider>
+  </>
 );

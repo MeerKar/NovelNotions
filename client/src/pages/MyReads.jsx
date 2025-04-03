@@ -25,6 +25,14 @@ import {
   MenuList,
   MenuItem,
   IconButton,
+  VStack,
+  Image,
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionPanel,
+  AccordionIcon,
+  useColorMode,
 } from "@chakra-ui/react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -48,63 +56,65 @@ const MyReads = () => {
   const [filterBy, setFilterBy] = useState("all");
   const navigate = useNavigate();
   const toast = useToast();
+  const { colorMode } = useColorMode();
+  const bgColor = colorMode === "light" ? "gray.50" : "gray.900";
+  const cardBg = colorMode === "light" ? "white" : "gray.800";
+  const textColor = colorMode === "light" ? "gray.800" : "gray.100";
 
   // Get the current user
   const currentUser = AuthService.loggedIn() ? AuthService.getProfile() : null;
   const userId = currentUser?.id;
 
-  // Color modes
-  const bgColor = useColorModeValue("white", "gray.800");
-  const cardBg = useColorModeValue("gray.50", "gray.700");
-  const headingColor = useColorModeValue("gray.800", "white");
-  const textColor = useColorModeValue("gray.600", "gray.300");
-
   useEffect(() => {
-    const fetchBooks = async () => {
-      if (!userId) return;
-
+    const fetchSavedBooks = () => {
       try {
-        setError(null);
+        if (!AuthService.loggedIn()) {
+          setError("Please log in to view your saved books.");
+          setLoading(false);
+          return;
+        }
+
         const savedBooksKey = `savedBooks_${userId}`;
         const savedBooks =
           JSON.parse(localStorage.getItem(savedBooksKey)) || [];
-
-        const normalizedSavedBooks = savedBooks.map((book) => ({
-          bookId: book.primary_isbn10 || book._id,
-          title: book.title || "Unknown Title",
-          author: book.author || "Unknown Author",
-          book_image: book.book_image || "default_image_url_here",
-          description: book.description || "No description available.",
-          publisher: book.publisher || "Unknown Publisher",
-          rank: book.rank || null,
-          rank_last_week: book.rank_last_week || null,
-          weeks_on_list: book.weeks_on_list || null,
-          category: book.category || "Uncategorized",
-        }));
-
-        setBooks(normalizedSavedBooks);
-      } catch (error) {
-        console.error("Failed to fetch saved books:", error);
-        setError(error.message || "Failed to fetch saved books.");
-      } finally {
+        setBooks(savedBooks);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching saved books:", err);
+        setError("Failed to fetch saved books. Please try again later.");
         setLoading(false);
       }
     };
 
-    fetchBooks();
+    fetchSavedBooks();
   }, [userId]);
 
   const handleRemoveBook = (bookId) => {
-    const updatedBooks = books.filter((book) => book.bookId !== bookId);
-    setBooks(updatedBooks);
-    localStorage.setItem(`savedBooks_${userId}`, JSON.stringify(updatedBooks));
-    toast({
-      title: "Book removed",
-      description: "The book has been removed from your reading list.",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
+    try {
+      const updatedBooks = books.filter((book) => book.bookId !== bookId);
+      localStorage.setItem(
+        `savedBooks_${userId}`,
+        JSON.stringify(updatedBooks)
+      );
+      setBooks(updatedBooks);
+
+      toast({
+        title: "Book removed",
+        description: "The book has been removed from your reading list.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err) {
+      console.error("Error removing book:", err);
+      toast({
+        title: "Error",
+        description: "Failed to remove the book. Please try again.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   const handleSort = (sortType) => {
@@ -217,126 +227,176 @@ const MyReads = () => {
   }
 
   return (
-    <Box bg={bgColor} minH="100vh" py={10}>
+    <Box bg={bgColor} minH="100vh" py={8}>
       <Container maxW="container.xl">
-        <MotionBox
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Stack spacing={8}>
-            <Flex justify="space-between" align="center">
-              <Heading as="h1" size="2xl" color={headingColor}>
-                My Reading List
-              </Heading>
-              <ButtonGroup spacing={4}>
-                <Menu>
-                  <MenuButton
-                    as={Button}
-                    leftIcon={<FaSort />}
-                    colorScheme="teal"
-                    variant="outline"
-                  >
-                    Sort By
-                  </MenuButton>
-                  <MenuList>
-                    <MenuItem onClick={() => handleSort("title")}>
-                      Title
-                    </MenuItem>
-                    <MenuItem onClick={() => handleSort("author")}>
-                      Author
-                    </MenuItem>
-                    <MenuItem onClick={() => handleSort("rank")}>Rank</MenuItem>
-                  </MenuList>
-                </Menu>
-                <Menu>
-                  <MenuButton
-                    as={Button}
-                    leftIcon={<FaFilter />}
-                    colorScheme="teal"
-                    variant="outline"
-                  >
-                    Filter By
-                  </MenuButton>
-                  <MenuList>
-                    <MenuItem onClick={() => handleFilter("all")}>
-                      All Books
-                    </MenuItem>
-                    <MenuItem onClick={() => handleFilter("Fiction")}>
-                      Fiction
-                    </MenuItem>
-                    <MenuItem onClick={() => handleFilter("Nonfiction")}>
-                      Nonfiction
-                    </MenuItem>
-                    <MenuItem onClick={() => handleFilter("Biography")}>
-                      Biography
-                    </MenuItem>
-                  </MenuList>
-                </Menu>
-              </ButtonGroup>
-            </Flex>
-
-            {books.length > 0 ? (
-              <SimpleGrid
-                columns={{ base: 1, sm: 2, md: 3, lg: 4 }}
-                spacing={6}
+        <Flex justify="space-between" align="center" mb={8}>
+          <Heading color={textColor}>My Reading List</Heading>
+          <ButtonGroup>
+            <Menu>
+              <MenuButton
+                as={Button}
+                rightIcon={<FaSort />}
+                variant="outline"
+                colorScheme="teal"
               >
-                {books.map((book) => (
-                  <MotionBox
-                    key={book.bookId}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Box position="relative">
-                      <BookCard {...book} />
+                Sort By
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={() => handleSort("title")}>Title</MenuItem>
+                <MenuItem onClick={() => handleSort("author")}>Author</MenuItem>
+                <MenuItem onClick={() => handleSort("rank")}>Rank</MenuItem>
+              </MenuList>
+            </Menu>
+            <Menu>
+              <MenuButton
+                as={Button}
+                rightIcon={<FaFilter />}
+                variant="outline"
+                colorScheme="teal"
+              >
+                Filter By
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={() => handleFilter("all")}>All</MenuItem>
+                <MenuItem onClick={() => handleFilter("fiction")}>
+                  Fiction
+                </MenuItem>
+                <MenuItem onClick={() => handleFilter("nonfiction")}>
+                  Non-Fiction
+                </MenuItem>
+              </MenuList>
+            </Menu>
+          </ButtonGroup>
+        </Flex>
+
+        {books.length === 0 ? (
+          <Box
+            bg={cardBg}
+            p={8}
+            borderRadius="lg"
+            textAlign="center"
+            boxShadow="sm"
+          >
+            <Icon as={FaBook} boxSize={12} color="gray.500" mb={4} />
+            <Text fontSize="xl" color="gray.500">
+              Your reading list is empty.
+            </Text>
+            <Button mt={4} colorScheme="teal" onClick={() => navigate("/")}>
+              Discover Books
+            </Button>
+          </Box>
+        ) : (
+          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={8}>
+            {books.map((book) => (
+              <Box
+                key={book.bookId}
+                bg={cardBg}
+                borderRadius="lg"
+                overflow="hidden"
+                boxShadow="sm"
+                transition="transform 0.2s, box-shadow 0.2s"
+                _hover={{
+                  transform: "translateY(-4px)",
+                  boxShadow: "md",
+                }}
+              >
+                <Box position="relative" height="300px">
+                  <Image
+                    src={
+                      book.book_image ||
+                      "https://via.placeholder.com/200x300?text=No+Image"
+                    }
+                    alt={book.title}
+                    objectFit="cover"
+                    width="100%"
+                    height="100%"
+                  />
+                </Box>
+
+                <Box p={6}>
+                  <VStack spacing={4} align="stretch">
+                    <Heading size="md" color={textColor}>
+                      {book.title}
+                    </Heading>
+                    <Text color="gray.500" fontSize="md">
+                      by {book.author}
+                    </Text>
+
+                    {book.rank && (
+                      <Badge colorScheme="teal" alignSelf="start">
+                        Rank #{book.rank}
+                      </Badge>
+                    )}
+
+                    <Accordion allowToggle>
+                      <AccordionItem border="none">
+                        <AccordionButton px={0}>
+                          <Box flex="1" textAlign="left">
+                            <Text fontWeight="bold">
+                              Reviews ({(book.reviews || []).length})
+                            </Text>
+                          </Box>
+                          <AccordionIcon />
+                        </AccordionButton>
+                        <AccordionPanel pb={4} px={0}>
+                          {book.reviews && book.reviews.length > 0 ? (
+                            <VStack spacing={3} align="stretch">
+                              {book.reviews.map((review, index) => (
+                                <Box
+                                  key={index}
+                                  p={3}
+                                  bg={
+                                    colorMode === "light"
+                                      ? "gray.50"
+                                      : "gray.700"
+                                  }
+                                  borderRadius="md"
+                                >
+                                  <Text fontWeight="bold" fontSize="sm">
+                                    {review.username}
+                                  </Text>
+                                  <Text color="gray.500" fontSize="xs">
+                                    {new Date(
+                                      review.createdAt
+                                    ).toLocaleDateString()}
+                                  </Text>
+                                  <Text mt={2} fontSize="sm">
+                                    {review.reviewText}
+                                  </Text>
+                                </Box>
+                              ))}
+                            </VStack>
+                          ) : (
+                            <Text color="gray.500" fontSize="sm">
+                              No reviews yet
+                            </Text>
+                          )}
+                        </AccordionPanel>
+                      </AccordionItem>
+                    </Accordion>
+
+                    <Stack direction="row" spacing={4} mt={2}>
+                      <Button
+                        flex={1}
+                        colorScheme="teal"
+                        onClick={() => navigate(`/books/${book.bookId}`)}
+                      >
+                        View Details
+                      </Button>
                       <IconButton
                         aria-label="Remove book"
                         icon={<FaTrash />}
                         colorScheme="red"
-                        size="sm"
-                        position="absolute"
-                        top={2}
-                        right={2}
+                        variant="ghost"
                         onClick={() => handleRemoveBook(book.bookId)}
-                        opacity={0}
-                        _hover={{ opacity: 1 }}
-                        transition="opacity 0.2s"
                       />
-                    </Box>
-                  </MotionBox>
-                ))}
-              </SimpleGrid>
-            ) : (
-              <Flex
-                direction="column"
-                justify="center"
-                align="center"
-                w="100%"
-                py={20}
-                bg={cardBg}
-                borderRadius="lg"
-              >
-                <Icon as={FaBook} boxSize={16} color="gray.400" mb={4} />
-                <Text fontSize="xl" color={textColor} mb={4}>
-                  Your reading list is empty
-                </Text>
-                <Text color={textColor} mb={6}>
-                  Start adding books to your collection
-                </Text>
-                <Button
-                  as={Link}
-                  to="/books"
-                  colorScheme="teal"
-                  size="lg"
-                  leftIcon={<FaBook />}
-                >
-                  Browse Books
-                </Button>
-              </Flex>
-            )}
-          </Stack>
-        </MotionBox>
+                    </Stack>
+                  </VStack>
+                </Box>
+              </Box>
+            ))}
+          </SimpleGrid>
+        )}
       </Container>
     </Box>
   );

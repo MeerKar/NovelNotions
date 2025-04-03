@@ -113,6 +113,23 @@ const SingleBook = () => {
   useEffect(() => {
     const fetchBook = async () => {
       try {
+        // First, check if the book is in the user's reading list
+        if (Auth.loggedIn()) {
+          const currentUser = Auth.getProfile();
+          const savedBooksKey = `savedBooks_${currentUser.id}`;
+          const savedBooks =
+            JSON.parse(localStorage.getItem(savedBooksKey)) || [];
+          const savedBook = savedBooks.find((book) => book.bookId === id);
+
+          if (savedBook) {
+            setBook(savedBook);
+            setIsInReadingList(true);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // If not in reading list, fetch from API
         const categories = [
           "hardcover-fiction",
           "hardcover-nonfiction",
@@ -120,6 +137,24 @@ const SingleBook = () => {
           "science",
         ];
 
+        // Try to get from cache first
+        for (const category of categories) {
+          const cachedData = localStorage.getItem(category);
+          if (cachedData) {
+            const { data } = JSON.parse(cachedData);
+            const foundBook = data.find(
+              (bookItem) =>
+                bookItem.primary_isbn10 === id || bookItem._id === id
+            );
+            if (foundBook) {
+              setBook(foundBook);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+
+        // If not in cache, fetch from API
         const fetchedBooksPromises = categories.map((category) =>
           fetchBestSellers(category)
         );
@@ -133,20 +168,8 @@ const SingleBook = () => {
 
         if (foundBook) {
           setBook(foundBook);
-          // Check if book is in user's reading list
-          if (Auth.loggedIn()) {
-            const currentUser = Auth.getProfile();
-            const savedBooksKey = `savedBooks_${currentUser.id}`;
-            const existingBooks =
-              JSON.parse(localStorage.getItem(savedBooksKey)) || [];
-            setIsInReadingList(
-              existingBooks.some(
-                (savedBook) =>
-                  savedBook.bookId ===
-                  (foundBook.primary_isbn10 || foundBook._id)
-              )
-            );
-          }
+        } else {
+          setError("Book not found.");
         }
       } catch (err) {
         setError(err.message || "Failed to fetch book data.");
@@ -192,6 +215,8 @@ const SingleBook = () => {
         const newBook = {
           ...book,
           bookId: book.primary_isbn10 || book._id,
+          reviews: [],
+          discussions: [],
         };
         existingBooks.push(newBook);
         localStorage.setItem(savedBooksKey, JSON.stringify(existingBooks));
@@ -211,168 +236,169 @@ const SingleBook = () => {
     }
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: book.title,
-        text: `Check out "${book.title}" by ${book.author}`,
-        url: window.location.href,
+  const handleAddReview = (review) => {
+    const currentUser = Auth.getProfile();
+    const savedBooksKey = `savedBooks_${currentUser.id}`;
+    const existingBooks = JSON.parse(localStorage.getItem(savedBooksKey)) || [];
+
+    const bookIndex = existingBooks.findIndex(
+      (savedBook) => savedBook.bookId === (book.primary_isbn10 || book._id)
+    );
+
+    if (bookIndex !== -1) {
+      if (!existingBooks[bookIndex].reviews) {
+        existingBooks[bookIndex].reviews = [];
+      }
+      existingBooks[bookIndex].reviews.push({
+        ...review,
+        username: currentUser.username,
+        createdAt: new Date().toISOString(),
       });
-    } else {
-      onOpen();
+      localStorage.setItem(savedBooksKey, JSON.stringify(existingBooks));
+
+      toast({
+        title: "Review added",
+        description: "Your review has been added successfully.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
-  // Loading State
+  const handleShare = () => {
+    onOpen();
+    navigator.clipboard.writeText(window.location.href);
+    toast({
+      title: "Link copied!",
+      description: "The book's URL has been copied to your clipboard.",
+      status: "success",
+      duration: 2000,
+      isClosable: true,
+    });
+  };
+
   if (loading) {
     return (
-      <Flex
-        direction="column"
-        align="center"
-        justify="center"
-        minH="100vh"
-        bg={bgColor}
-      >
-        <Spinner
-          size="xl"
-          thickness="4px"
-          speed="0.65s"
-          emptyColor="gray.200"
-          color="teal.500"
-        />
-        <Text mt={4} fontSize="lg" color="teal.500">
-          Loading book details...
-        </Text>
+      <Flex justify="center" align="center" minH="100vh" bg={bgColor}>
+        <VStack spacing={4}>
+          <Spinner size="xl" color="teal.500" thickness="4px" />
+          <Text color={textColor}>Loading book details...</Text>
+        </VStack>
       </Flex>
     );
   }
 
-  // Error State
-  if (error) {
+  if (error || !book) {
     return (
-      <Container
-        maxW="container.md"
-        bg={bgColor}
-        p={8}
-        borderRadius="md"
-        boxShadow="lg"
-      >
-        <Flex direction="column" align="center" justify="center" minH="100vh">
-          <Icon as={FaExclamationTriangle} boxSize={12} color="red.500" />
-          <Text fontSize="xl" color="red.500" mt={4} textAlign="center">
-            An error occurred: {error}
-          </Text>
+      <Box bg={bgColor} minH="100vh" py={8}>
+        <Container maxW="container.xl">
           <Button
-            mt={6}
-            colorScheme="teal"
-            onClick={() => window.location.reload()}
-          >
-            Retry
-          </Button>
-        </Flex>
-      </Container>
-    );
-  }
-
-  // Book Not Found State
-  if (!book) {
-    return (
-      <Container
-        maxW="container.md"
-        bg={bgColor}
-        p={8}
-        borderRadius="md"
-        boxShadow="lg"
-      >
-        <Flex direction="column" align="center" justify="center" minH="100vh">
-          <Text fontSize="xl" color="red.500">
-            Book not found
-          </Text>
-          <Button
-            mt={6}
-            colorScheme="teal"
             leftIcon={<ArrowBackIcon />}
             onClick={() => navigate(-1)}
+            mb={8}
+            variant="ghost"
           >
             Go Back
           </Button>
-        </Flex>
-      </Container>
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            minH="50vh"
+            bg={cardBg}
+            borderRadius="lg"
+            p={8}
+          >
+            <Icon
+              as={FaExclamationTriangle}
+              boxSize={12}
+              color="red.500"
+              mb={4}
+            />
+            <Text fontSize="xl" color="red.500" textAlign="center">
+              {error || "Book not found"}
+            </Text>
+          </Flex>
+        </Container>
+      </Box>
     );
   }
 
   return (
-    <Box bg={bgColor} minH="100vh" py={10}>
+    <Box bg={bgColor} minH="100vh" py={8}>
       <Container maxW="container.xl">
-        <MotionBox
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+        <Button
+          leftIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+          mb={8}
+          variant="ghost"
         >
-          <Button
-            leftIcon={<ArrowBackIcon />}
-            variant="ghost"
-            mb={6}
-            onClick={() => navigate(-1)}
-          >
-            Back to Books
-          </Button>
+          Go Back
+        </Button>
 
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8}>
-            {/* Book Image */}
-            <Box>
-              <Image
-                src={book.book_image}
-                alt={book.title}
-                borderRadius="lg"
-                boxShadow="xl"
-                w="100%"
-                h="auto"
-                objectFit="cover"
-                transition="transform 0.3s"
-                _hover={{ transform: "scale(1.02)" }}
-              />
-            </Box>
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
+          <Box>
+            <Image
+              src={
+                book.book_image ||
+                "https://via.placeholder.com/200x300?text=No+Image"
+              }
+              alt={book.title}
+              borderRadius="lg"
+              w="100%"
+              maxH="500px"
+              objectFit="contain"
+              bg={cardBg}
+            />
+          </Box>
 
-            {/* Book Details */}
-            <VStack align="start" spacing={6}>
-              <Heading size="2xl" color={textColor}>
-                {book.title}
-              </Heading>
-              <Text fontSize="xl" color="gray.500">
-                by {book.author}
-              </Text>
-              <HStack spacing={4}>
+          <VStack align="start" spacing={6}>
+            <Heading size="2xl" color={textColor}>
+              {book.title}
+            </Heading>
+            <Text fontSize="xl" color="gray.500">
+              by {book.author}
+            </Text>
+            <HStack spacing={4} wrap="wrap">
+              {book.rank && (
                 <Badge colorScheme={badgeColor} fontSize="md" p={2}>
-                  Rank: #{book.rank}
+                  Rank #{book.rank}
                 </Badge>
-                {book.weeks_on_list > 0 && (
-                  <Badge colorScheme="purple" fontSize="md" p={2}>
-                    {book.weeks_on_list} weeks on list
-                  </Badge>
-                )}
-              </HStack>
-              <Text fontSize="lg" color={textColor}>
-                {book.description}
-              </Text>
-              <Stack direction={{ base: "column", md: "row" }} spacing={4}>
-                <Button
-                  leftIcon={<FaBookmark />}
-                  colorScheme="teal"
-                  size="lg"
-                  onClick={handleAddToBooks}
-                  isDisabled={isInReadingList}
-                >
-                  {isInReadingList ? "In Reading List" : "Add to Reading List"}
-                </Button>
-                <Button
-                  leftIcon={<FaShare />}
-                  colorScheme="blue"
-                  size="lg"
-                  onClick={handleShare}
-                >
-                  Share
-                </Button>
+              )}
+              {book.weeks_on_list > 0 && (
+                <Badge colorScheme="purple" fontSize="md" p={2}>
+                  {book.weeks_on_list} weeks on list
+                </Badge>
+              )}
+              {book.category && (
+                <Badge colorScheme="blue" fontSize="md" p={2}>
+                  {book.category}
+                </Badge>
+              )}
+            </HStack>
+            <Text fontSize="lg" color={textColor}>
+              {book.description}
+            </Text>
+            <Stack direction={{ base: "column", md: "row" }} spacing={4}>
+              <Button
+                leftIcon={<FaBookmark />}
+                colorScheme="teal"
+                size="lg"
+                onClick={handleAddToBooks}
+                isDisabled={isInReadingList}
+              >
+                {isInReadingList ? "In Reading List" : "Add to Reading List"}
+              </Button>
+              <Button
+                leftIcon={<FaShare />}
+                colorScheme="blue"
+                size="lg"
+                onClick={handleShare}
+              >
+                Share
+              </Button>
+              {book.amazon_product_url && (
                 <Button
                   leftIcon={<FaShoppingCart />}
                   colorScheme="green"
@@ -381,113 +407,106 @@ const SingleBook = () => {
                 >
                   Buy Now
                 </Button>
-              </Stack>
-            </VStack>
-          </SimpleGrid>
+              )}
+            </Stack>
+          </VStack>
+        </SimpleGrid>
 
-          {/* Additional Information */}
-          <Box mt={12}>
-            <Tabs variant="soft-rounded" colorScheme="teal">
-              <TabList>
-                <Tab>Details</Tab>
-                <Tab>Reviews</Tab>
-                <Tab>Discussion</Tab>
-              </TabList>
-              <TabPanels>
-                <TabPanel>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    <Box bg={cardBg} p={6} borderRadius="lg">
-                      <Heading size="md" mb={4}>
-                        Book Details
-                      </Heading>
-                      <Stack spacing={3}>
-                        <Text>
-                          <strong>Publisher:</strong> {book.publisher}
+        <Tabs variant="enclosed" colorScheme="teal" mt={8}>
+          <TabList>
+            <Tab>Reviews</Tab>
+            <Tab>Details</Tab>
+            <Tab>Discussion</Tab>
+          </TabList>
+
+          <TabPanels>
+            <TabPanel>
+              <VStack spacing={6} align="stretch">
+                <CommentForm bookId={book.primary_isbn10 || book._id} />
+                {book.reviews && book.reviews.length > 0 ? (
+                  <VStack spacing={4} align="stretch">
+                    {book.reviews.map((review, index) => (
+                      <Box
+                        key={index}
+                        p={4}
+                        bg={cardBg}
+                        borderRadius="md"
+                        boxShadow="sm"
+                      >
+                        <Text fontWeight="bold">{review.username}</Text>
+                        <Text color="gray.500" fontSize="sm">
+                          {new Date(review.createdAt).toLocaleDateString()}
                         </Text>
-                        <Text>
-                          <strong>ISBN:</strong> {book.primary_isbn10}
-                        </Text>
-                        <Text>
-                          <strong>Price:</strong> ${book.price}
-                        </Text>
-                        <Text>
-                          <strong>Age Group:</strong> {book.age_group}
-                        </Text>
-                      </Stack>
-                    </Box>
-                    <Box bg={cardBg} p={6} borderRadius="lg">
-                      <Heading size="md" mb={4}>
-                        Contributor
-                      </Heading>
-                      <Stack spacing={3}>
-                        <Text>
-                          <strong>Author:</strong> {book.author}
-                        </Text>
-                        <Text>
-                          <strong>Contributor:</strong> {book.contributor}
-                        </Text>
-                      </Stack>
-                    </Box>
-                  </SimpleGrid>
-                </TabPanel>
-                <TabPanel>
-                  <Box bg={cardBg} p={6} borderRadius="lg">
-                    <Heading size="md" mb={4}>
-                      Reviews
-                    </Heading>
-                    <Text>Reviews coming soon...</Text>
-                  </Box>
-                </TabPanel>
-                <TabPanel>
-                  <Box bg={cardBg} p={6} borderRadius="lg">
-                    <Heading size="md" mb={4}>
-                      Discussion
-                    </Heading>
-                    <CommentForm bookId={book.primary_isbn10} />
-                  </Box>
-                </TabPanel>
-              </TabPanels>
-            </Tabs>
-          </Box>
-        </MotionBox>
+                        <Text mt={2}>{review.reviewText}</Text>
+                      </Box>
+                    ))}
+                  </VStack>
+                ) : (
+                  <Text color="gray.500">
+                    No reviews yet. Be the first to review!
+                  </Text>
+                )}
+              </VStack>
+            </TabPanel>
+
+            <TabPanel>
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                <Box>
+                  <Heading size="md" mb={4}>
+                    Book Details
+                  </Heading>
+                  <VStack align="start" spacing={3}>
+                    <Text>
+                      <strong>Publisher:</strong> {book.publisher}
+                    </Text>
+                    <Text>
+                      <strong>ISBN:</strong> {book.primary_isbn10}
+                    </Text>
+                    <Text>
+                      <strong>Rank Last Week:</strong>{" "}
+                      {book.rank_last_week || "N/A"}
+                    </Text>
+                    <Text>
+                      <strong>Weeks on List:</strong>{" "}
+                      {book.weeks_on_list || "N/A"}
+                    </Text>
+                    {book.price && (
+                      <Text>
+                        <strong>Price:</strong> ${book.price}
+                      </Text>
+                    )}
+                  </VStack>
+                </Box>
+              </SimpleGrid>
+            </TabPanel>
+
+            <TabPanel>
+              <VStack spacing={6} align="stretch">
+                <Box p={4} bg={cardBg} borderRadius="md">
+                  <Heading size="md" mb={4}>
+                    Join the Discussion
+                  </Heading>
+                  <Text>
+                    Share your thoughts and discuss this book with other
+                    readers.
+                  </Text>
+                </Box>
+              </VStack>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </Container>
 
-      {/* Share Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>Share Book</ModalHeader>
+          <ModalHeader>Share this Book</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <Stack spacing={4}>
-              <Button
-                leftIcon={<FaShare />}
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  toast({
-                    title: "Link copied!",
-                    status: "success",
-                    duration: 2000,
-                    isClosable: true,
-                  });
-                }}
-              >
-                Copy Link
-              </Button>
-              <Button
-                leftIcon={<FaShare />}
-                onClick={() =>
-                  window.open(
-                    `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                      `Check out "${book.title}" by ${book.author}`
-                    )}&url=${encodeURIComponent(window.location.href)}`,
-                    "_blank"
-                  )
-                }
-              >
-                Share on Twitter
-              </Button>
-            </Stack>
+            <Text>Copy this link to share:</Text>
+            <Text color="blue.500" mt={2}>
+              {window.location.href}
+            </Text>
           </ModalBody>
         </ModalContent>
       </Modal>
