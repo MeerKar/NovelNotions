@@ -3,14 +3,14 @@ require("dotenv").config(); // Load environment variables from .env file
 const express = require("express");
 const path = require("path");
 const db = require("./config/connection");
+const { ApolloServer } = require("apollo-server-express");
+const { typeDefs, resolvers } = require("./schemas");
 const morgan = require("morgan");
 const cors = require("cors");
 
 const apiRoutes = require("./api"); // Import the API routes
 const { authMiddleware } = require("./utils/auth");
-const { ApolloServer } = require("apollo-server-express");
 const { expressMiddleware } = require("@apollo/server/express4");
-const { typeDefs, resolvers } = require("./schemas");
 
 const PORT = process.env.PORT || 3001;
 const app = express();
@@ -23,9 +23,28 @@ if (process.env.NODE_ENV !== "production") {
 // Enable CORS
 app.use(cors());
 
+// Express middleware
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
+
+// Serve static files in production
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "../client/dist")));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../client/dist/index.html"));
+  });
+}
+
+// Create Apollo Server
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  context: ({ req }) => ({ req }),
+  formatError: (error) => {
+    console.error("GraphQL Error:", error);
+    return error;
+  },
 });
 
 // Error handling middleware
@@ -34,33 +53,28 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something broke!");
 });
 
-// Create a new instance of an Apollo server with the GraphQL schema
-const startApolloServer = async () => {
+// Start server function
+const startServer = async () => {
   try {
+    // Start Apollo Server
     await server.start();
+
+    // Apply Apollo middleware
     server.applyMiddleware({ app });
-
-    app.use(express.urlencoded({ extended: false }));
-    app.use(express.json());
-
-    app.use("/api", apiRoutes); // Use the API routes
-
-    // Serve static files from the React app build directory
-    if (process.env.NODE_ENV === "production") {
-      app.use(express.static(path.join(__dirname, "../client/dist")));
-
-      app.get("*", (req, res) => {
-        res.sendFile(path.join(__dirname, "../client/dist/index.html"));
-      });
-    }
 
     // Wait for database connection
     await new Promise((resolve, reject) => {
-      db.once("open", resolve);
-      db.on("error", reject);
+      db.once("open", () => {
+        console.log("MongoDB connected successfully");
+        resolve();
+      });
+      db.on("error", (err) => {
+        console.error("MongoDB connection error:", err);
+        reject(err);
+      });
     });
 
-    // Start the server
+    // Start Express server
     app.listen(PORT, () => {
       console.log(`API server running on port ${PORT}!`);
       console.log(
@@ -68,10 +82,15 @@ const startApolloServer = async () => {
       );
     });
   } catch (error) {
-    console.error("Failed to start the server:", error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 };
 
-// Call the async function to start the server
-startApolloServer();
+// Handle uncaught errors
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled Promise Rejection:", err);
+});
+
+// Start the server
+startServer();
