@@ -2,14 +2,14 @@
 # exit on error
 set -o errexit
 
-echo "Installing dependencies..."
-npm ci
+echo "Installing root dependencies..."
+npm install
 
 echo "Installing and building client..."
 cd client
 
 # Clean up
-rm -rf node_modules package-lock.json dist
+rm -rf node_modules dist
 
 # Create a temporary package.json with minimal dependencies
 cat > package.json << 'EOF'
@@ -51,10 +51,7 @@ module.exports = defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
-    minify: 'esbuild',
-    rollupOptions: {
-      input: path.resolve(__dirname, 'index.html')
-    }
+    minify: 'esbuild'
   }
 })
 EOF
@@ -92,7 +89,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 EOF
 
 echo "Installing client dependencies..."
-npm ci
+# First do a regular install to generate package-lock.json
+npm install
 
 echo "Building client..."
 npm run build
@@ -102,5 +100,6 @@ cd ..
 
 echo "Installing server dependencies..."
 cd server
-npm ci
+# First do a regular install to generate package-lock.json
+npm install
 cd .. 
