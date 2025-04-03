@@ -15,15 +15,12 @@ cd client
 # Remove existing node_modules and package-lock.json
 rm -rf node_modules package-lock.json
 
-# Install specific versions of Vite and its plugin
-npm install --save-dev vite@4.4.5
-npm install --save-dev @vitejs/plugin-react@4.0.0
+# Install dependencies with exact versions
+npm install --save-exact
+npm install --save-dev --save-exact vite@4.4.5 @vitejs/plugin-react@4.0.0
 
-# Install remaining dependencies
-npm install --legacy-peer-deps
-
-# Build the application
-npm run build
+# Build using npx
+npx vite build
 
 # Return to root
 cd .. 
