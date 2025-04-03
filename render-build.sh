@@ -11,9 +11,6 @@ cd client
 # Clean up
 rm -rf node_modules dist
 
-# Install dependencies first
-npm install
-
 # Create a temporary package.json with minimal dependencies
 cat > package.json << 'EOF'
 {
@@ -36,11 +33,9 @@ cat > package.json << 'EOF'
     "jwt-decode": "3.1.2",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "react-router-dom": "6.11.2"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "4.0.0",
-    "vite": "4.4.5"
+    "react-router-dom": "6.11.2",
+    "vite": "4.4.5",
+    "@vitejs/plugin-react": "4.0.0"
   }
 }
 EOF
@@ -90,9 +85,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 )
 EOF
 
+echo "Installing client dependencies..."
+npm install
+
 echo "Building client..."
-# Use npx with exact path to vite
-npx ./node_modules/vite/bin/vite.js build
+# Use npm run build instead of direct vite command
+npm run build
 
 echo "Client build complete. Returning to root..."
 cd ..
