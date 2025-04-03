@@ -28,8 +28,11 @@ if (process.env.NODE_ENV !== "production") {
 
 // Basic error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send("Something broke!");
+  console.error("Express error:", err);
+  res.status(500).json({
+    message: "Internal Server Error",
+    error: process.env.NODE_ENV === "production" ? {} : err,
+  });
 });
 
 // Enable CORS
@@ -48,12 +51,21 @@ if (process.env.NODE_ENV === "production") {
 const apolloServer = new ApolloServer({
   typeDefs,
   resolvers,
-  cache: "bounded",
-  persistedQueries: false,
   formatError: (error) => {
     console.error("GraphQL Error:", error);
     return error;
   },
+  plugins: [
+    {
+      requestDidStart: async () => ({
+        willSendResponse: async ({ response }) => {
+          if (response.errors) {
+            console.error("GraphQL Response Errors:", response.errors);
+          }
+        },
+      }),
+    },
+  ],
 });
 
 // Start server function
@@ -61,17 +73,18 @@ const startServer = async () => {
   try {
     console.log("Starting server initialization...");
 
-    // Wait for database connection first
+    // Wait for database connection
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error("MongoDB connection timeout after 30 seconds"));
-      }, 30000);
-
       if (db.readyState === 1) {
-        clearTimeout(timeout);
         console.log("MongoDB already connected");
         resolve();
       } else {
+        console.log("Waiting for MongoDB connection...");
+
+        const timeout = setTimeout(() => {
+          reject(new Error("MongoDB connection timeout after 30 seconds"));
+        }, 30000);
+
         db.once("connected", () => {
           clearTimeout(timeout);
           console.log("MongoDB connected successfully");
@@ -86,7 +99,7 @@ const startServer = async () => {
       }
     });
 
-    // Start Apollo Server after DB connection
+    // Start Apollo Server
     await apolloServer.start();
     console.log("Apollo Server started successfully");
 
@@ -98,8 +111,10 @@ const startServer = async () => {
       })
     );
 
-    // Handle all other routes in production
+    // Serve static files in production
     if (process.env.NODE_ENV === "production") {
+      app.use(express.static(path.join(__dirname, "../client/dist")));
+
       app.get("*", (req, res) => {
         res.sendFile(path.join(__dirname, "../client/dist/index.html"));
       });
@@ -111,11 +126,16 @@ const startServer = async () => {
       console.log(`Use GraphQL at http://localhost:${PORT}/graphql`);
     });
 
-    // Handle server errors
-    httpServer.on("error", (error) => {
-      console.error("Express server error:", error);
-      process.exit(1);
-    });
+    // Handle server shutdown
+    const shutdown = async () => {
+      console.log("Shutting down server...");
+      await new Promise((resolve) => httpServer.close(resolve));
+      await db.close();
+      process.exit(0);
+    };
+
+    process.on("SIGTERM", shutdown);
+    process.on("SIGINT", shutdown);
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
