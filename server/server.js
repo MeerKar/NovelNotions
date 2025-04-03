@@ -43,39 +43,29 @@ app.use((err, req, res, next) => {
 });
 
 // Create Apollo Server
-const server = new ApolloServer({
+const apolloServer = new ApolloServer({
   typeDefs,
   resolvers,
   cache: "bounded",
+  persistedQueries: false,
   formatError: (error) => {
     console.error("GraphQL Error:", error);
     return error;
   },
-  plugins: [
-    {
-      requestDidStart: async () => ({
-        willSendResponse: async ({ response }) => {
-          if (response.errors) {
-            console.error("GraphQL Response Errors:", response.errors);
-          }
-        },
-      }),
-    },
-  ],
 });
 
 // Start server function
 const startServer = async () => {
   try {
     // Start Apollo Server
-    await server.start();
+    await apolloServer.start();
 
     // Apply Apollo middleware
     app.use(
       "/graphql",
       cors(),
       express.json(),
-      expressMiddleware(server, {
+      expressMiddleware(apolloServer, {
         context: async ({ req }) => ({ req }),
       })
     );
@@ -100,13 +90,13 @@ const startServer = async () => {
     });
 
     // Start Express server
-    const server = app.listen(PORT, () => {
+    const httpServer = app.listen(PORT, () => {
       console.log(`API server running on port ${PORT}!`);
       console.log(`Use GraphQL at http://localhost:${PORT}/graphql`);
     });
 
     // Handle server errors
-    server.on("error", (error) => {
+    httpServer.on("error", (error) => {
       console.error("Express server error:", error);
       process.exit(1);
     });
