@@ -45,24 +45,31 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../client/dist")));
 }
 
-let server = null;
+let httpServer = null;
 
 // Start server function
 const startServer = async () => {
   try {
     console.log("Starting server initialization...");
+    console.log(`Environment: ${process.env.NODE_ENV}`);
+    console.log(`Port: ${PORT}`);
 
     // Wait for MongoDB connection
     await new Promise((resolve, reject) => {
-      if (db.readyState === 1) {
-        console.log("MongoDB already connected");
-        resolve();
-      } else {
-        console.log("Waiting for MongoDB connection...");
+      const connectWithRetry = () => {
+        if (db.readyState === 1) {
+          console.log("MongoDB already connected");
+          resolve();
+          return;
+        }
+
+        console.log("Attempting to connect to MongoDB...");
 
         const timeout = setTimeout(() => {
-          reject(new Error("MongoDB connection timeout after 30 seconds"));
-        }, 30000);
+          console.log("MongoDB connection attempt timed out, retrying...");
+          db.removeAllListeners();
+          connectWithRetry();
+        }, 10000);
 
         db.once("connected", () => {
           clearTimeout(timeout);
@@ -70,12 +77,15 @@ const startServer = async () => {
           resolve();
         });
 
-        db.on("error", (err) => {
+        db.once("error", (err) => {
           clearTimeout(timeout);
           console.error("MongoDB connection error:", err);
-          reject(err);
+          console.log("Retrying connection in 5 seconds...");
+          setTimeout(connectWithRetry, 5000);
         });
-      }
+      };
+
+      connectWithRetry();
     });
 
     // Initialize Apollo Server
@@ -91,10 +101,15 @@ const startServer = async () => {
     await apolloServer.start();
     console.log("Apollo Server started");
 
-    // Initialize API routes
+    // Initialize API routes with error handling
     app.use("/api", (req, res, next) => {
       console.log(`API Request: ${req.method} ${req.path}`);
-      apiRoutes(req, res, next);
+      try {
+        apiRoutes(req, res, next);
+      } catch (error) {
+        console.error("API Route Error:", error);
+        next(error);
+      }
     });
 
     // Apply Apollo middleware
@@ -112,25 +127,30 @@ const startServer = async () => {
       });
     }
 
-    // Start server
-    server = app.listen(PORT, "0.0.0.0", () => {
+    // Start server with keep-alive
+    httpServer = app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`GraphQL at http://localhost:${PORT}/graphql`);
-      console.log(`Environment: ${process.env.NODE_ENV}`);
     });
 
-    // Graceful shutdown
+    // Enable keep-alive connections
+    httpServer.keepAliveTimeout = 65000; // Slightly higher than Heroku's 60 second timeout
+    httpServer.headersTimeout = 66000; // Slightly higher than keepAliveTimeout
+
+    // Graceful shutdown handler
     const shutdown = async (signal) => {
       console.log(`\nReceived ${signal} signal. Starting graceful shutdown...`);
 
-      // First, stop accepting new requests
-      if (server) {
-        server.close(() => {
-          console.log("HTTP server closed");
-        });
-      }
-
+      let exitCode = 0;
       try {
+        // Stop accepting new connections
+        if (httpServer) {
+          await new Promise((resolve) => {
+            httpServer.close(resolve);
+            console.log("HTTP server stopped accepting new connections");
+          });
+        }
+
         // Close MongoDB connection
         if (db.readyState === 1) {
           await db.close();
@@ -144,16 +164,20 @@ const startServer = async () => {
         }
 
         console.log("Graceful shutdown completed");
-        process.exit(0);
       } catch (error) {
         console.error("Error during shutdown:", error);
-        process.exit(1);
+        exitCode = 1;
       }
+
+      // Exit process
+      process.exit(exitCode);
     };
 
-    // Handle shutdown signals
-    process.on("SIGTERM", () => shutdown("SIGTERM"));
-    process.on("SIGINT", () => shutdown("SIGINT"));
+    // Handle various shutdown signals
+    const signals = ["SIGTERM", "SIGINT", "SIGUSR2"];
+    signals.forEach((signal) => {
+      process.on(signal, () => shutdown(signal));
+    });
 
     // Handle uncaught errors
     process.on("unhandledRejection", (err) => {
