@@ -44,59 +44,56 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../client/dist")));
 }
 
-// Create Apollo Server
-const apolloServer = new ApolloServer({
-  typeDefs,
-  resolvers,
-  formatError: (error) => {
-    console.error("GraphQL Error:", error);
-    return error;
-  },
-  plugins: [
-    {
-      requestDidStart: async () => ({
-        willSendResponse: async ({ response }) => {
-          if (response.errors) {
-            console.error("GraphQL Response Errors:", response.errors);
-          }
-        },
-      }),
-    },
-  ],
-});
-
 // Start server function
 const startServer = async () => {
   try {
     console.log("Starting server initialization...");
+    console.log("Waiting for MongoDB connection...");
 
     // Wait for database connection
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error("MongoDB connection timeout"));
-      }, 10000);
-
       if (db.readyState === 1) {
-        clearTimeout(timeout);
         console.log("MongoDB already connected");
         resolve();
       } else {
-        console.log("Waiting for MongoDB connection...");
         db.once("connected", () => {
-          clearTimeout(timeout);
           console.log("MongoDB connected successfully");
           resolve();
         });
 
         db.on("error", (err) => {
-          clearTimeout(timeout);
           console.error("MongoDB connection error:", err);
           reject(err);
         });
+
+        // Set a timeout for the connection attempt
+        setTimeout(() => {
+          reject(new Error("MongoDB connection timeout after 30 seconds"));
+        }, 30000);
       }
     });
 
-    // Start Apollo Server
+    // Create and start Apollo Server
+    const apolloServer = new ApolloServer({
+      typeDefs,
+      resolvers,
+      formatError: (error) => {
+        console.error("GraphQL Error:", error);
+        return error;
+      },
+      plugins: [
+        {
+          requestDidStart: async () => ({
+            willSendResponse: async ({ response }) => {
+              if (response.errors) {
+                console.error("GraphQL Response Errors:", response.errors);
+              }
+            },
+          }),
+        },
+      ],
+    });
+
     await apolloServer.start();
     console.log("Apollo Server started");
 
