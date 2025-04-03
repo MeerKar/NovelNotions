@@ -56,20 +56,21 @@ const startServer = async () => {
         console.log("MongoDB already connected");
         resolve();
       } else {
+        const timeout = setTimeout(() => {
+          reject(new Error("MongoDB connection timeout after 30 seconds"));
+        }, 30000);
+
         db.once("connected", () => {
+          clearTimeout(timeout);
           console.log("MongoDB connected successfully");
           resolve();
         });
 
         db.on("error", (err) => {
+          clearTimeout(timeout);
           console.error("MongoDB connection error:", err);
           reject(err);
         });
-
-        // Set a timeout for the connection attempt
-        setTimeout(() => {
-          reject(new Error("MongoDB connection timeout after 30 seconds"));
-        }, 30000);
       }
     });
 
@@ -97,6 +98,10 @@ const startServer = async () => {
     await apolloServer.start();
     console.log("Apollo Server started");
 
+    // Set up API routes first
+    app.use("/api", apiRoutes);
+    console.log("API routes initialized");
+
     // Apply Apollo middleware
     app.use(
       "/graphql",
@@ -104,6 +109,7 @@ const startServer = async () => {
         context: async ({ req }) => ({ req }),
       })
     );
+    console.log("GraphQL middleware initialized");
 
     // Serve static files in production
     if (process.env.NODE_ENV === "production") {
@@ -111,13 +117,25 @@ const startServer = async () => {
       app.get("*", (req, res) => {
         res.sendFile(path.join(__dirname, "../client/dist/index.html"));
       });
+      console.log("Static file serving enabled for production");
     }
 
     // Start Express server
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`API server running on port ${PORT}!`);
       console.log(`Use GraphQL at http://localhost:${PORT}/graphql`);
     });
+
+    // Handle graceful shutdown
+    const shutdown = async () => {
+      console.log("Shutting down server...");
+      await new Promise((resolve) => server.close(resolve));
+      await db.close();
+      process.exit(0);
+    };
+
+    process.on("SIGTERM", shutdown);
+    process.on("SIGINT", shutdown);
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
