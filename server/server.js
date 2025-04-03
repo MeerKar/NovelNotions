@@ -12,6 +12,7 @@ const cors = require("cors");
 const apiRoutes = require("./api"); // Import the API routes
 const { authMiddleware } = require("./utils/auth");
 
+// Get port from environment variable for Heroku or use 3001 locally
 const PORT = process.env.PORT || 3001;
 const app = express();
 
@@ -121,16 +122,21 @@ const startServer = async () => {
     }
 
     // Start Express server
-    const server = app.listen(PORT, () => {
-      console.log(`API server running on port ${PORT}!`);
-      console.log(`Use GraphQL at http://localhost:${PORT}/graphql`);
+    const server = app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server is running on port ${PORT}`);
+      console.log(
+        `GraphQL endpoint available at http://localhost:${PORT}/graphql`
+      );
+      console.log(`Environment: ${process.env.NODE_ENV}`);
     });
 
     // Handle graceful shutdown
     const shutdown = async () => {
-      console.log("Shutting down server...");
+      console.log("Received shutdown signal");
       await new Promise((resolve) => server.close(resolve));
+      console.log("Closed out remaining connections");
       await db.close();
+      console.log("Database connections closed");
       process.exit(0);
     };
 
