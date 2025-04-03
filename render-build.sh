@@ -12,20 +12,41 @@ cd ..
 
 # Build client
 cd client
-# Remove existing node_modules and package-lock.json
-rm -rf node_modules package-lock.json
 
-# Install Vite globally first
-npm install -g vite@4.4.5
+# Clean up
+rm -rf node_modules package-lock.json dist
 
-# Install dependencies with exact versions
-npm install --save-exact
-npm install --save-dev --save-exact @vitejs/plugin-react@4.0.0
+# Create a temporary package.json with minimal dependencies
+cat > package.json << 'EOF'
+{
+  "name": "client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@apollo/client": "^3.7.14",
+    "@chakra-ui/react": "^2.8.2",
+    "@chakra-ui/icons": "^2.1.1",
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.5",
+    "framer-motion": "^11.2.6",
+    "graphql": "^16.6.0",
+    "jwt-decode": "^3.1.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.11.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.0.0",
+    "vite": "4.4.5"
+  }
+}
+EOF
 
-# Ensure vite.config.js is in the correct location
-if [ ! -f "vite.config.js" ]; then
-  echo "Creating vite.config.js..."
-  cat > vite.config.js << 'EOF'
+# Create vite.config.js
+cat > vite.config.js << 'EOF'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -33,16 +54,25 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
-    sourcemap: false,
     minify: true,
+    rollupOptions: {
+      external: ['react', 'react-dom'],
+      output: {
+        globals: {
+          react: 'React',
+          'react-dom': 'ReactDOM',
+        },
+      },
+    },
   },
 })
 EOF
-fi
 
-# Build using global Vite
-NODE_ENV=production vite build
+# Install dependencies
+npm install
+
+# Build
+npm run build
 
 # Return to root
 cd .. 
