@@ -45,13 +45,11 @@ EOF
 cat > vite.config.js << 'EOF'
 const { defineConfig } = require('vite')
 const react = require('@vitejs/plugin-react')
-const path = require('path')
 
 module.exports = defineConfig({
   plugins: [react()],
   build: {
-    outDir: 'dist',
-    minify: 'esbuild'
+    outDir: 'dist'
   }
 })
 EOF
@@ -89,17 +87,19 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 EOF
 
 echo "Installing client dependencies..."
-# First do a regular install to generate package-lock.json
 npm install
 
+echo "Installing Vite globally..."
+npm install -g vite@4.4.5
+
 echo "Building client..."
-npm run build
+# Use npx to ensure we're using the local version first, falling back to global
+npx --no-install vite build
 
 echo "Client build complete. Returning to root..."
 cd ..
 
 echo "Installing server dependencies..."
 cd server
-# First do a regular install to generate package-lock.json
 npm install
 cd .. 
