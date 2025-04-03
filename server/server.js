@@ -49,18 +49,18 @@ if (process.env.NODE_ENV === "production") {
 const startServer = async () => {
   try {
     console.log("Starting server initialization...");
-    console.log("Waiting for MongoDB connection...");
 
-    // Wait for database connection
+    // Wait for MongoDB connection
     await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("MongoDB connection timeout after 30 seconds"));
+      }, 30000);
+
       if (db.readyState === 1) {
+        clearTimeout(timeout);
         console.log("MongoDB already connected");
         resolve();
       } else {
-        const timeout = setTimeout(() => {
-          reject(new Error("MongoDB connection timeout after 30 seconds"));
-        }, 30000);
-
         db.once("connected", () => {
           clearTimeout(timeout);
           console.log("MongoDB connected successfully");
@@ -75,7 +75,7 @@ const startServer = async () => {
       }
     });
 
-    // Create and start Apollo Server
+    // Initialize Apollo Server
     const apolloServer = new ApolloServer({
       typeDefs,
       resolvers,
@@ -83,25 +83,16 @@ const startServer = async () => {
         console.error("GraphQL Error:", error);
         return error;
       },
-      plugins: [
-        {
-          requestDidStart: async () => ({
-            willSendResponse: async ({ response }) => {
-              if (response.errors) {
-                console.error("GraphQL Response Errors:", response.errors);
-              }
-            },
-          }),
-        },
-      ],
     });
 
     await apolloServer.start();
     console.log("Apollo Server started");
 
-    // Set up API routes first
-    app.use("/api", apiRoutes);
-    console.log("API routes initialized");
+    // Initialize API routes
+    app.use("/api", (req, res, next) => {
+      console.log(`API Request: ${req.method} ${req.path}`);
+      apiRoutes(req, res, next);
+    });
 
     // Apply Apollo middleware
     app.use(
@@ -110,45 +101,50 @@ const startServer = async () => {
         context: async ({ req }) => ({ req }),
       })
     );
-    console.log("GraphQL middleware initialized");
 
-    // Serve static files in production
+    // Serve static files and handle client routing in production
     if (process.env.NODE_ENV === "production") {
-      app.use(express.static(path.join(__dirname, "../client/dist")));
       app.get("*", (req, res) => {
         res.sendFile(path.join(__dirname, "../client/dist/index.html"));
       });
-      console.log("Static file serving enabled for production");
     }
 
-    // Start Express server
+    // Start server
     const server = app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server is running on port ${PORT}`);
-      console.log(
-        `GraphQL endpoint available at http://localhost:${PORT}/graphql`
-      );
+      console.log(`Server running on port ${PORT}`);
+      console.log(`GraphQL at http://localhost:${PORT}/graphql`);
       console.log(`Environment: ${process.env.NODE_ENV}`);
     });
 
-    // Handle graceful shutdown
-    const shutdown = async () => {
-      console.log("Received shutdown signal");
-      await new Promise((resolve) => server.close(resolve));
-      console.log("Closed out remaining connections");
-      await db.close();
-      console.log("Database connections closed");
-      process.exit(0);
+    // Graceful shutdown
+    const shutdown = async (signal) => {
+      console.log(`Received ${signal} signal`);
+      server.close(() => {
+        console.log("HTTP server closed");
+        db.close().then(() => {
+          console.log("MongoDB connection closed");
+          process.exit(0);
+        });
+      });
+
+      // Force exit if graceful shutdown fails
+      setTimeout(() => {
+        console.error(
+          "Could not close connections in time, forcefully shutting down"
+        );
+        process.exit(1);
+      }, 10000);
     };
 
-    process.on("SIGTERM", shutdown);
-    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
   } catch (error) {
-    console.error("Failed to start server:", error);
+    console.error("Server startup failed:", error);
     process.exit(1);
   }
 };
 
-// Handle uncaught errors
+// Global error handlers
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Promise Rejection:", err);
 });
