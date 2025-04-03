@@ -8,8 +8,8 @@
     "develop": "concurrently \"cd server && npm run watch\" \"cd client && npm run dev\"",
     "install": "cd server && npm i && cd ../client && npm i",
     "seed": "cd server && npm run seed",
-    "build": "cd client && ./node_modules/.bin/vite build",
-    "render-build": "bash ./render-build.sh"
+    "build": "cd client && npx vite build",
+    "render-build": "bash render-build.sh"
   },
   "keywords": [],
   "author": "",

@@ -23,7 +23,7 @@ cat > package.json << 'EOF'
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "./node_modules/.bin/vite build"
+    "build": "vite build"
   },
   "dependencies": {
     "@apollo/client": "^3.7.14",
@@ -62,14 +62,11 @@ EOF
 # Install dependencies
 npm install
 
-# Ensure vite is available in node_modules/.bin
-if [ ! -f "node_modules/.bin/vite" ]; then
-  echo "Vite binary not found, installing explicitly..."
-  npm install --save-dev vite@4.4.5
-fi
+# Install Vite globally (this helps ensure npx can find it)
+npm install -g vite@4.4.5
 
-# Build using explicit path
-./node_modules/.bin/vite build
+# Build using npx
+npx vite build
 
 # Return to root
 cd .. 
