@@ -13,38 +13,31 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { useNavigate, Link } from "react-router-dom";
+import { useMutation } from "@apollo/client";
+import { ADD_USER } from "../utils/mutations";
 import Auth from "../utils/auth";
 
 const Signup = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
   const toast = useToast();
+
+  const [addUser, { loading, error }] = useMutation(ADD_USER);
 
   const handleSignup = async (e) => {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:5000/api/signup", {
-        // Replace with your backend URL
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password, name, email }),
+      const { data } = await addUser({
+        variables: { username, email, password },
       });
 
-      if (!response.ok) {
-        throw new Error("Signup failed");
-      }
-
-      const data = await response.json();
-      Auth.login(data.token);
+      Auth.login(data.addUser.token);
       toast({
         title: "Signup Successful",
-        description: `Welcome, ${Auth.getProfile().name}!`,
+        description: `Welcome, ${data.addUser.user.username}!`,
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -53,7 +46,8 @@ const Signup = () => {
     } catch (error) {
       toast({
         title: "Signup Failed",
-        description: "Username might already be taken or invalid input.",
+        description:
+          error.message || "Username might already be taken or invalid input.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -79,15 +73,6 @@ const Signup = () => {
         </Heading>
         <form onSubmit={handleSignup}>
           <VStack spacing={4}>
-            <FormControl id="name" isRequired>
-              <FormLabel>Full Name</FormLabel>
-              <Input
-                type="text"
-                placeholder="Enter your full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </FormControl>
             <FormControl id="email" isRequired>
               <FormLabel>Email Address</FormLabel>
               <Input
@@ -115,9 +100,17 @@ const Signup = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </FormControl>
-            <Button type="submit" colorScheme="teal" width="full">
+            <Button
+              type="submit"
+              colorScheme="teal"
+              width="full"
+              isLoading={loading}
+            >
               Signup
             </Button>
+            {error && (
+              <Text color="red.500">Failed to signup. Please try again.</Text>
+            )}
             <Text>
               Already have an account?{" "}
               <Link to="/login" style={{ color: "#3182CE" }}>
