@@ -16,7 +16,7 @@ import {
 import { Link, useParams } from "react-router-dom";
 import ClubCard from "../components/ClubCard";
 import { FaPlus, FaSearch, FaSignOutAlt } from "react-icons/fa";
-import AuthService from "../utils/Auth";
+import Auth from "../utils/auth";
 import { getCurrentUser } from "../utils/currentUser";
 
 const staticClubData = [
@@ -226,7 +226,7 @@ const Clubs = () => {
                 ml={4}
                 colorScheme="red"
                 variant="ghost"
-                onClick={() => AuthService.logout()}
+                onClick={() => Auth.logout()}
                 leftIcon={<FaSignOutAlt />}
               >
                 Logout

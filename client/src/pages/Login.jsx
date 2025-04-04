@@ -15,7 +15,7 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import { useMutation } from "@apollo/client";
 import { LOGIN_USER } from "../utils/mutations"; // Adjust path as needed
-import AuthService from "../utils/Auth";
+import Auth from "../utils/auth";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -35,7 +35,7 @@ const Login = () => {
       });
 
       // Assuming AuthService.login() stores the token in local storage
-      AuthService.login(data.login.token);
+      Auth.login(data.login.token);
 
       toast({
         title: "Login Successful",

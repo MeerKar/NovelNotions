@@ -13,7 +13,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { useNavigate, Link } from "react-router-dom";
-import AuthService from "../utils/Auth";
+import Auth from "../utils/auth";
 
 const Signup = () => {
   const [username, setUsername] = useState("");
@@ -41,10 +41,10 @@ const Signup = () => {
       }
 
       const data = await response.json();
-      AuthService.login(data.token);
+      Auth.login(data.token);
       toast({
         title: "Signup Successful",
-        description: `Welcome, ${AuthService.getProfile().name}!`,
+        description: `Welcome, ${Auth.getProfile().name}!`,
         status: "success",
         duration: 3000,
         isClosable: true,

@@ -1,8 +1,8 @@
-import AuthService from "./Auth";
+import Auth from "./auth";
 
 export const getCurrentUser = () => {
-  if (AuthService.loggedIn()) {
-    return AuthService.getProfile();
+  if (Auth.loggedIn()) {
+    return Auth.getProfile();
   }
   return null;
 };

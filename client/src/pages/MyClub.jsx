@@ -8,7 +8,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import ClubCard from "../components/ClubCard";
-import AuthService from "../utils/Auth";
+import Auth from "../utils/auth";
 
 const staticClubData = [
   {
@@ -28,10 +28,8 @@ const staticClubData = [
     description:
       "Engage with non-fiction books that challenge your perspective and deepen your understanding of the world. Ideal for inquisitive minds who enjoy learning and discussing real-life issues.",
     category: "Non-Fiction",
-  
   },
   {
-
     id: "3",
     name: "Portraits in Prose",
     image:
@@ -69,15 +67,14 @@ const staticClubData = [
   },
 ];
 
-
 const MyClub = () => {
   const [joinedClubs, setJoinedClubs] = useState([]);
   const [allClubs, setAllClubs] = useState([]);
   const [currentUser, setCurrentUser] = useState(null); // Track current user state
 
   useEffect(() => {
-    // Fetch current user from AuthService
-    const user = AuthService.loggedIn() ? AuthService.getProfile() : null;
+    // Fetch current user from Auth
+    const user = Auth.loggedIn() ? Auth.getProfile() : null;
     setCurrentUser(user); // Set the user once
   }, []); // Only runs once on mount
 
