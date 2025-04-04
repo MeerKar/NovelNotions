@@ -42,21 +42,51 @@ export const EDIT_USER = gql`
 
 // Book Management Mutations
 export const ADD_BOOK = gql`
-  mutation addBook($title: String!, $authors: [String!]!, $description: String!, $image: String, $link: String) {
-    addBook(title: $title, authors: $authors, description: $description, image: $image, link: $link) {
+  mutation addBook($bookId: ID!) {
+    addBook(bookId: $bookId) {
       _id
       title
-      authors
+      author
       description
-      image
-      link
+      book_image
+      primary_isbn10
+      primary_isbn13
+      publisher
+      rank
+      rank_last_week
+      weeks_on_list
+      price
+      amazon_product_url
+      reviews {
+        _id
+        reviewText
+        rating
+        createdAt
+        user {
+          username
+        }
+      }
     }
   }
 `;
 
 export const EDIT_BOOK = gql`
-  mutation editBook($id: ID!, $title: String, $authors: [String!], $description: String, $image: String, $link: String) {
-    editBook(id: $id, title: $title, authors: $authors, description: $description, image: $image, link: $link) {
+  mutation editBook(
+    $id: ID!
+    $title: String
+    $authors: [String!]
+    $description: String
+    $image: String
+    $link: String
+  ) {
+    editBook(
+      id: $id
+      title: $title
+      authors: $authors
+      description: $description
+      image: $image
+      link: $link
+    ) {
       _id
       title
       authors
@@ -78,12 +108,15 @@ export const REMOVE_BOOK = gql`
 
 // Review Management Mutations
 export const ADD_REVIEW = gql`
-  mutation addReview($bookId: ID!, $reviewText: String!) {
-    addReview(bookId: $bookId, reviewText: $reviewText) {
+  mutation addReview($bookId: ID!, $reviewText: String!, $rating: Int) {
+    addReview(bookId: $bookId, reviewText: $reviewText, rating: $rating) {
       _id
       reviewText
+      rating
       createdAt
-      username
+      user {
+        username
+      }
     }
   }
 `;
@@ -134,6 +167,8 @@ export const CREATE_CLUB = gql`
         _id
         username
       }
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -158,6 +193,16 @@ export const UPDATE_CLUB = gql`
       description
       category
       image
+      books {
+        _id
+        title
+      }
+      users {
+        _id
+        username
+      }
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -263,6 +308,19 @@ export const ADD_TO_BOOKSHELF = gql`
       title
       author
       image
+    }
+  }
+`;
+
+export const REMOVE_BOOK_FROM_CLUB = gql`
+  mutation removeBookFromClub($clubId: ID!, $bookId: ID!) {
+    removeBookFromClub(clubId: $clubId, bookId: $bookId) {
+      _id
+      name
+      books {
+        _id
+        title
+      }
     }
   }
 `;

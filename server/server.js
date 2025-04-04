@@ -8,6 +8,7 @@ const { expressMiddleware } = require("@apollo/server/express4");
 const { typeDefs, resolvers } = require("./schemas");
 const morgan = require("morgan");
 const cors = require("cors");
+const { Book, Review } = require("./models");
 
 const apiRoutes = require("./api"); // Import the API routes
 const { authMiddleware } = require("./utils/auth");
@@ -37,8 +38,14 @@ app.use((err, req, res, next) => {
 app.use(cors());
 
 // Express middleware
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
+// Log all incoming requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
@@ -68,24 +75,43 @@ const startServer = async () => {
     await apolloServer.start();
     console.log("Apollo Server started");
 
-    // Initialize API routes with error handling
-    app.use("/api", (req, res, next) => {
-      console.log(`API Request: ${req.method} ${req.path}`);
-      try {
-        apiRoutes(req, res, next);
-      } catch (error) {
-        console.error("API Route Error:", error);
-        next(error);
-      }
-    });
+    // Mount API routes
+    app.use("/api", apiRoutes);
 
-    // Apply Apollo middleware
+    // Mount GraphQL server
     app.use(
       "/graphql",
       expressMiddleware(apolloServer, {
-        context: async ({ req }) => ({ req }),
+        context: authMiddleware,
       })
     );
+
+    // Add REST endpoint for fetching book reviews
+    app.get("/api/books/:id/reviews", async (req, res) => {
+      try {
+        const book = await Book.findOne({
+          $or: [
+            { primary_isbn10: req.params.id },
+            { primary_isbn13: req.params.id },
+          ],
+        }).populate({
+          path: "reviews",
+          populate: {
+            path: "user",
+            select: "username",
+          },
+        });
+
+        if (!book) {
+          return res.status(404).json({ message: "Book not found" });
+        }
+
+        res.json(book.reviews || []);
+      } catch (error) {
+        console.error("Error fetching reviews:", error);
+        res.status(500).json({ message: "Failed to fetch reviews" });
+      }
+    });
 
     // Serve static files and handle client routing in production
     if (process.env.NODE_ENV === "production") {

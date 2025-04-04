@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "dev": "nodemon server.js",
     "watch": "nodemon server.js",
     "seed": "node seeders/seed.js"
   },
@@ -19,6 +20,7 @@
     "express": "^4.17.1",
     "graphql": "^16.6.0",
     "jsonwebtoken": "^8.5.1",
+    "memory-cache": "^0.2.0",
     "mongoose": "^7.0.2",
     "morgan": "^1.10.0"
   },

@@ -30,12 +30,18 @@ export const fetchBestSellers = async (listName, { signal } = {}) => {
     let lastError;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
+        console.log(`Attempt ${attempt} to fetch bestsellers for ${listName}`);
         const response = await axios.get(`${BASE_URL}${listName}`, {
           signal,
           timeout: 10000, // 10 second timeout
         });
 
+        // Check if the response has the expected structure
         if (!Array.isArray(response.data)) {
+          console.error("Invalid response format:", response.data);
+          if (response.data?.error) {
+            throw new Error(response.data.message || "API configuration error");
+          }
           throw new Error("Invalid response format");
         }
 
@@ -57,11 +63,18 @@ export const fetchBestSellers = async (listName, { signal } = {}) => {
         lastError = error;
         console.warn(`Attempt ${attempt} failed:`, error.message);
 
+        // If it's an API configuration error, don't retry
+        if (error.response?.data?.error === "API configuration error") {
+          throw new Error(error.response.data.message);
+        }
+
         if (attempt === MAX_RETRIES) {
           // On last attempt, throw error with details
+          const errorMessage = error.response?.data?.message || error.message;
+          const errorDetails = error.response?.data?.details || "";
           throw new Error(
-            `Failed to fetch bestsellers after ${MAX_RETRIES} attempts: ${
-              error.response?.data?.message || error.message
+            `Failed to fetch bestsellers after ${MAX_RETRIES} attempts: ${errorMessage}${
+              errorDetails ? ` (${errorDetails})` : ""
             }`
           );
         }
@@ -104,5 +117,31 @@ export const clearAllCaches = () => {
     });
   } catch (error) {
     console.error("Error clearing all caches:", error);
+  }
+};
+
+export const fetchBookByIsbn = async (isbn, { signal } = {}) => {
+  try {
+    const response = await axios.get(`/api/books/${isbn}`, {
+      signal,
+      timeout: 10000, // 10 second timeout
+    });
+
+    if (!response.data) {
+      throw new Error("Book not found");
+    }
+
+    return response.data;
+  } catch (error) {
+    if (error.name === "AbortError" || error.name === "CanceledError") {
+      throw new Error("Request was cancelled");
+    }
+
+    // Handle specific error cases
+    if (error.response?.status === 404) {
+      throw new Error("Book not found in NYT Bestseller lists");
+    }
+
+    throw new Error(error.response?.data?.message || error.message);
   }
 };

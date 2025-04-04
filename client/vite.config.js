@@ -11,15 +11,16 @@ export default defineConfig({
     minify: true,
   },
   server: {
-    port: 3000,
+    port: 5173,
+    strictPort: false,
     open: true,
     proxy: {
-      "/graphql": {
+      "/api": {
         target: "http://localhost:3001",
         changeOrigin: true,
         secure: false,
       },
-      "/api": {
+      "/graphql": {
         target: "http://localhost:3001",
         changeOrigin: true,
         secure: false,

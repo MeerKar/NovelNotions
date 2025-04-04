@@ -10,6 +10,8 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import { useState } from "react";
+import { useMutation } from "@apollo/client";
+import { CREATE_CLUB } from "../../utils/mutations";
 
 const ClubForm = ({ onSuccess }) => {
   const [formState, setFormState] = useState({
@@ -20,93 +22,100 @@ const ClubForm = ({ onSuccess }) => {
   });
   const toast = useToast();
 
+  const [createClub, { loading, error }] = useMutation(CREATE_CLUB, {
+    onCompleted: (data) => {
+      toast({
+        title: "Club Created",
+        description: `Your club "${data.createClub.name}" has been successfully created!`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      onSuccess(data.createClub);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    },
+  });
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormState({ ...formState, [name]: value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Retrieve existing clubs from localStorage
-      const existingClubs = JSON.parse(localStorage.getItem("clubs")) || [];
-      // Add a unique ID to the new club
-      const newClub = { ...formState, id: Date.now() };
-      // Save the new club
-      localStorage.setItem("clubs", JSON.stringify([...existingClubs, newClub]));
-
-      toast({
-        title: "Club Created",
-        description: `Your club "${newClub.name}" has been successfully created!`,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
+      await createClub({
+        variables: { ...formState },
       });
-
-      // Call the success callback
-      onSuccess(newClub);
     } catch (err) {
       console.error(err);
-      toast({
-        title: "Error",
-        description: "An error occurred while creating the club.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
     }
   };
 
   return (
     <Box as="form" onSubmit={handleSubmit}>
       <Stack spacing={4}>
-        <FormControl id="name" isRequired>
+        <FormControl isRequired>
           <FormLabel>Club Name</FormLabel>
           <Input
             name="name"
-            placeholder="Enter club name"
             value={formState.name}
             onChange={handleChange}
+            placeholder="Enter club name"
           />
         </FormControl>
-        <FormControl id="description" isRequired>
+
+        <FormControl isRequired>
           <FormLabel>Description</FormLabel>
           <Textarea
             name="description"
-            placeholder="Enter club description"
             value={formState.description}
             onChange={handleChange}
+            placeholder="Enter club description"
           />
         </FormControl>
-        <FormControl id="category" isRequired>
+
+        <FormControl isRequired>
           <FormLabel>Category</FormLabel>
           <Select
             name="category"
-            placeholder="Select category"
             value={formState.category}
             onChange={handleChange}
+            placeholder="Select category"
           >
             <option value="Fiction">Fiction</option>
             <option value="Non-Fiction">Non-Fiction</option>
-            <option value="Mystery">Mystery</option>
-            <option value="Fantasy">Fantasy</option>
-            <option value="Technology">Technology</option>
             <option value="Biography">Biography</option>
             <option value="Kids">Kids</option>
+            <option value="Technology">Technology</option>
             <option value="Thriller">Thriller</option>
-            <option value="Pet Club">Pet Club</option>
           </Select>
         </FormControl>
-        <FormControl id="image">
-          <FormLabel>Image URL</FormLabel>
+
+        <FormControl>
+          <FormLabel>Image URL (optional)</FormLabel>
           <Input
             name="image"
-            placeholder="Enter image URL"
             value={formState.image}
             onChange={handleChange}
+            placeholder="Enter image URL"
           />
         </FormControl>
-        <Button type="submit" colorScheme="teal">
+
+        <Button
+          type="submit"
+          colorScheme="teal"
+          isLoading={loading}
+          loadingText="Creating..."
+        >
           Create Club
         </Button>
       </Stack>

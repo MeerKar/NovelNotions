@@ -66,7 +66,7 @@ const MyReads = () => {
   const userId = currentUser?.id;
 
   useEffect(() => {
-    const fetchSavedBooks = () => {
+    const fetchSavedBooks = async () => {
       try {
         if (!Auth.loggedIn()) {
           setError("Please log in to view your saved books.");
@@ -77,7 +77,32 @@ const MyReads = () => {
         const savedBooksKey = `savedBooks_${userId}`;
         const savedBooks =
           JSON.parse(localStorage.getItem(savedBooksKey)) || [];
-        setBooks(savedBooks);
+
+        // Fetch reviews for each book
+        const booksWithReviews = await Promise.all(
+          savedBooks.map(async (book) => {
+            try {
+              const response = await fetch(
+                `/api/books/${
+                  book.primary_isbn10 || book.primary_isbn13
+                }/reviews`
+              );
+              if (response.ok) {
+                const reviews = await response.json();
+                return { ...book, reviews };
+              }
+              return book;
+            } catch (error) {
+              console.error(
+                `Error fetching reviews for book ${book.title}:`,
+                error
+              );
+              return book;
+            }
+          })
+        );
+
+        setBooks(booksWithReviews);
         setLoading(false);
       } catch (err) {
         console.error("Error fetching saved books:", err);

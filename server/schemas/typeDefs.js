@@ -13,6 +13,14 @@ const typeDefs = `
     author: String!
     book_image: String
     description: String
+    primary_isbn10: String
+    primary_isbn13: String
+    publisher: String
+    rank: Int
+    rank_last_week: Int
+    weeks_on_list: Int
+    price: String
+    amazon_product_url: String
     createdAt: String
     users: [User]
     ratings: [Rating]
@@ -21,17 +29,23 @@ const typeDefs = `
 
   type Review {
     _id: ID!
+    bookId: ID!
     reviewText: String!
-    createdAt: String!
-    username: String!
+    rating: Int
+    user: User!
+    createdAt: String
   }
 
   type Club {
     _id: ID
-    name: String
+    name: String!
+    description: String
+    category: String
     image: String
     books: [Book]
     users: [User]
+    createdAt: String
+    updatedAt: String
   }
 
   type Rating {
@@ -50,20 +64,22 @@ const typeDefs = `
     users: [User]
     user(username: String!): User
     books: [Book]
-    book(bookId: ID!): Book
+    book(_id: ID!): Book
+    bookByIsbn(isbn: String!): Book
     bookByTitle(title: String!): Book
     clubs: [Club]
     club(clubId: ID!): Club
     me: User
     reviews: [Review]
     review(reviewId: ID!): Review
+    bookReviews(bookId: ID!): [Review]
   }
 
   type Mutation {
     addUser(username: String!, email: String!, password: String!): Auth
     login(email: String!, password: String!): Auth
-    addBook(title: String!, author: String!, image: String, description: String): Book
-    addReview(bookId: ID!, reviewText: String!): Review
+    addBook(title: String!, author: String!, book_image: String, description: String, primary_isbn10: String): Book
+    addReview(bookId: ID!, reviewText: String!, rating: Int): Review
     addClub(name: String!): Club
     addBookToClub(clubId: ID!, bookId: ID!): Club
     addUserToClub(clubId: ID!): Club
@@ -72,6 +88,12 @@ const typeDefs = `
     removeReview(bookId: ID!, reviewId: ID!): Book
     removeRating(ratingId: ID!): Rating
     addToBookshelf(bookId: ID!): User
+    createClub(name: String!, description: String!, category: String!, image: String): Club
+    updateClub(id: ID!, name: String, description: String, category: String, image: String): Club
+    deleteClub(id: ID!): Club
+    joinClub(clubId: ID!): Club
+    leaveClub(clubId: ID!): Club
+    removeBookFromClub(clubId: ID!, bookId: ID!): Club
   }
 `;
 

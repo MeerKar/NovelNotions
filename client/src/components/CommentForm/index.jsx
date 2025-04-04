@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import {
   Box,
   Button,
@@ -8,13 +7,49 @@ import {
   VStack,
   Heading,
   useToast,
+  FormControl,
+  FormLabel,
+  HStack,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
 } from "@chakra-ui/react";
+import { useMutation } from "@apollo/client";
+import { ADD_REVIEW } from "../../utils/mutations";
 import Auth from "../../utils/auth";
 
-const CommentForm = ({ bookId, onAddComment }) => {
+const CommentForm = ({ bookId, onSuccess }) => {
   const [reviewText, setReviewText] = useState("");
+  const [rating, setRating] = useState(5);
   const [characterCount, setCharacterCount] = useState(0);
   const toast = useToast();
+
+  const [addReview, { error }] = useMutation(ADD_REVIEW, {
+    onCompleted: () => {
+      if (onSuccess) onSuccess();
+      toast({
+        title: "Review added",
+        description: "Your review has been added successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      setReviewText("");
+      setRating(5);
+      setCharacterCount(0);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    },
+  });
 
   const handleFormSubmit = async (event) => {
     event.preventDefault();
@@ -42,57 +77,15 @@ const CommentForm = ({ bookId, onAddComment }) => {
     }
 
     try {
-      const currentUser = Auth.getProfile();
-      const review = {
-        reviewText,
-        username: currentUser.username,
-        createdAt: new Date().toISOString(),
-      };
-
-      // Update local storage
-      const savedBooksKey = `savedBooks_${currentUser.id}`;
-      const savedBooks = JSON.parse(localStorage.getItem(savedBooksKey)) || [];
-      const bookIndex = savedBooks.findIndex((book) => book.bookId === bookId);
-
-      if (bookIndex !== -1) {
-        if (!savedBooks[bookIndex].reviews) {
-          savedBooks[bookIndex].reviews = [];
-        }
-        savedBooks[bookIndex].reviews.push(review);
-        localStorage.setItem(savedBooksKey, JSON.stringify(savedBooks));
-
-        if (onAddComment) {
-          onAddComment(review);
-        }
-
-        toast({
-          title: "Review added",
-          description: "Your review has been added successfully",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-
-        setReviewText("");
-        setCharacterCount(0);
-      } else {
-        toast({
-          title: "Error",
-          description: "Book not found in your reading list",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
+      await addReview({
+        variables: {
+          bookId,
+          reviewText,
+          rating: parseInt(rating),
+        },
+      });
     } catch (err) {
       console.error("Error adding review:", err);
-      toast({
-        title: "Error",
-        description: "Failed to add review. Please try again.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
     }
   };
 
@@ -103,69 +96,51 @@ const CommentForm = ({ bookId, onAddComment }) => {
   };
 
   return (
-    <Box>
-      <Heading as="h4" size="md" mb={4}>
-        What do you think of this book?
-      </Heading>
+    <Box as="form" onSubmit={handleFormSubmit}>
+      <VStack spacing={4} align="stretch">
+        <Heading size="md">Add a Review</Heading>
 
-      {Auth.loggedIn() ? (
-        <>
+        <FormControl>
+          <FormLabel>Rating</FormLabel>
+          <NumberInput
+            max={5}
+            min={1}
+            value={rating}
+            onChange={(value) => setRating(value)}
+          >
+            <NumberInputField />
+            <NumberInputStepper>
+              <NumberIncrementStepper />
+              <NumberDecrementStepper />
+            </NumberInputStepper>
+          </NumberInput>
+        </FormControl>
+
+        <FormControl>
+          <FormLabel>Your Review</FormLabel>
+          <Textarea
+            value={reviewText}
+            onChange={handleChange}
+            placeholder="Share your thoughts about this book..."
+            rows={4}
+          />
           <Text
-            mb={4}
-            color={
-              characterCount > 280
-                ? "red.500"
-                : characterCount < 10
-                ? "gray.500"
-                : "green.500"
-            }
+            fontSize="sm"
+            color={characterCount >= 280 ? "red.500" : "gray.500"}
+            mt={2}
           >
-            Character Count: {characterCount}/280
-            {characterCount < 10 && (
-              <Text as="span" color="gray.500">
-                {" "}
-                - Minimum 10 characters required
-              </Text>
-            )}
+            {characterCount}/280 characters
           </Text>
-          <VStack
-            as="form"
-            onSubmit={handleFormSubmit}
-            spacing={4}
-            align="stretch"
-          >
-            <Textarea
-              name="reviewText"
-              placeholder="Share your thoughts about this book..."
-              value={reviewText}
-              onChange={handleChange}
-              resize="vertical"
-              minH="100px"
-              maxLength={280}
-            />
-            <Button
-              type="submit"
-              colorScheme="teal"
-              isDisabled={characterCount < 10}
-              width="fit-content"
-            >
-              Add Review
-            </Button>
-          </VStack>
-        </>
-      ) : (
-        <Text>
-          You need to be logged in to share your thoughts. Please{" "}
-          <Link to="/login" style={{ color: "#319795" }}>
-            login
-          </Link>{" "}
-          or{" "}
-          <Link to="/signup" style={{ color: "#319795" }}>
-            signup
-          </Link>
-          .
-        </Text>
-      )}
+        </FormControl>
+
+        <Button
+          type="submit"
+          colorScheme="teal"
+          isDisabled={!reviewText.trim() || characterCount < 10}
+        >
+          Add Review
+        </Button>
+      </VStack>
     </Box>
   );
 };

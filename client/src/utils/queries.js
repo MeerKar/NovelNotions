@@ -60,21 +60,28 @@ export const QUERY_BOOKS = gql`
 `;
 
 export const QUERY_SINGLE_BOOK = gql`
-  query GetSingleBook($bookId: ID!) {
-    book(bookId: $bookId) {
+  query getSingleBook($isbn: String!) {
+    bookByIsbn(isbn: $isbn) {
       _id
       title
       author
-      image
       description
-      createdAt
-      links {
-        site
-        url
-      }
-      reviews {
-        user
-        comment
+      book_image
+      primary_isbn10
+      primary_isbn13
+      publisher
+      rank
+      rank_last_week
+      weeks_on_list
+      price
+      amazon_product_url
+      ratings {
+        _id
+        value
+        user {
+          _id
+          username
+        }
       }
     }
   }
