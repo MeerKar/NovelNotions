@@ -23,20 +23,11 @@ const Login = () => {
   const navigate = useNavigate();
   const toast = useToast();
 
-  // Set up the login mutation with Apollo
-  const [login, { loading, error }] = useMutation(LOGIN_USER);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-
-    try {
-      const { data } = await login({
-        variables: { email, password },
-      });
-
-      // Assuming AuthService.login() stores the token in local storage
-      Auth.login(data.login.token);
-
+  const [login, { loading }] = useMutation(LOGIN_USER, {
+    onCompleted: (data) => {
+      console.log("Login successful:", data);
+      const token = data.login.token;
+      Auth.login(token);
       toast({
         title: "Login Successful",
         description: `Welcome back, ${data.login.user.username}!`,
@@ -44,16 +35,28 @@ const Login = () => {
         duration: 3000,
         isClosable: true,
       });
-
-      navigate("/"); // Redirect to home or desired page
-    } catch (err) {
+      navigate("/");
+    },
+    onError: (error) => {
+      console.error("Login error:", error);
       toast({
         title: "Login Failed",
-        description: "Invalid email or password.",
+        description: error.message,
         status: "error",
         duration: 3000,
         isClosable: true,
       });
+    },
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await login({
+        variables: { email, password },
+      });
+    } catch (err) {
+      console.error("Form submission error:", err);
     }
   };
 
@@ -98,7 +101,7 @@ const Login = () => {
         >
           Login
         </Heading>
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleSubmit}>
           <VStack spacing={4}>
             <FormControl id="email" isRequired>
               <FormLabel>Email</FormLabel>
@@ -128,9 +131,6 @@ const Login = () => {
             >
               Login
             </Button>
-            {error && (
-              <Text color="red.500">Failed to login. Please try again.</Text>
-            )}
             <Text>
               Don&apos;t have an account?{" "}
               <Link to="/signup" style={{ color: "#3182CE" }}>

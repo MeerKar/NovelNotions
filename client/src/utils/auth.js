@@ -4,32 +4,21 @@ import decode from "jwt-decode";
 
 class AuthService {
   getProfile() {
-    try {
-      const token = this.getToken();
-      if (!token) return null;
-      return decode(token);
-    } catch (err) {
-      console.error("Failed to decode token:", err);
-      return null;
-    }
+    const token = this.getToken();
+    return token ? decode(token) : null;
   }
 
   loggedIn() {
     const token = this.getToken();
-    return token && !this.isTokenExpired(token);
+    return !!token && !this.isTokenExpired(token);
   }
 
   isTokenExpired(token) {
     try {
       const decoded = decode(token);
-      if (decoded.exp < Date.now() / 1000) {
-        this.logout();
-        return true;
-      }
-      return false;
+      return decoded.exp < Date.now() / 1000;
     } catch (err) {
-      console.error("Error checking token expiration:", err);
-      this.logout();
+      console.error("Token validation error:", err);
       return true;
     }
   }
@@ -39,13 +28,14 @@ class AuthService {
   }
 
   login(idToken) {
+    console.log("Storing token:", idToken);
     localStorage.setItem("id_token", idToken);
-    // Optionally, redirect or perform other actions here
+    window.location.assign("/");
   }
 
   logout() {
     localStorage.removeItem("id_token");
-    window.location.reload();
+    window.location.assign("/");
   }
 }
 

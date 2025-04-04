@@ -198,23 +198,29 @@ const resolvers = {
     login: async (parent, { email, password }) => {
       try {
         const user = await User.findOne({ email });
+        console.log("Login attempt for email:", email);
 
         if (!user) {
+          console.log("No user found with email:", email);
           throw new AuthenticationError(
             "No user found with this email address"
           );
         }
 
         const correctPw = await user.isCorrectPassword(password);
+        console.log("Password check result:", correctPw);
 
         if (!correctPw) {
+          console.log("Incorrect password for user:", email);
           throw new AuthenticationError("Incorrect credentials");
         }
 
         const token = signToken(user);
+        console.log("Login successful for user:", email);
         return { token, user };
       } catch (error) {
-        throw new AuthenticationError(error.message);
+        console.error("Login error:", error);
+        throw error; // Re-throw the error to be handled by Apollo Server
       }
     },
     addBook: async (parent, { title, author, image, description }) => {
